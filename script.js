@@ -1,5 +1,5 @@
 document.getElementById('signup').addEventListener('click', () => {
-  alert('Signup Docs button clicked!');
+  window.location.href = 'signup.html';
 });
 
 document.getElementById('quote').addEventListener('click', () => {
