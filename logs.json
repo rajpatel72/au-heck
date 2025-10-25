@@ -10,5 +10,11 @@
     "checkboxLabel": "Check Phone",
     "isChecked": true,
     "timestamp": "2025-10-25T08:18:33.003Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "Check NMI",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:18:33.918Z"
   }
 ]
