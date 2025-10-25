@@ -43,7 +43,7 @@ export default function SignupPage() {
   const handleSiteCheck = (baseLabel, idx) => { const key=`${baseLabel} - Site ${idx}`; const isChecked=!checkedItems[key]; setCheckedItems(prev=>({...prev,[key]:isChecked})); logAction(baseLabel,isChecked,{siteIndex:idx}); }
   
   const checklist = getChecklist();
-render
+
   return (
     <main style={styles.main}>
       <div style={styles.card}>
