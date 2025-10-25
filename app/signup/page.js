@@ -290,7 +290,7 @@ export default function SignupPage() {
           <button type="button" onClick={() => router.push('/')} style={styles.secondaryButton}>
             Back
           </button>
-          <button type="button" onClick={() => router.push('/log')} style={styles.primaryButton}>
+          <button type="button" onClick={() => router.push('/logs')} style={styles.primaryButton}>
             View Logs
           </button>
         </div>
