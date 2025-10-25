@@ -9,7 +9,7 @@ export default function LogsPage() {
     const fetchLogs = async () => {
       try {
         const res = await fetch(
-          'https://raw.githubusercontent.com/GITHUB_REPO/GITHUB_TOKEN/main/logs.json',
+          'https://raw.githubusercontent.com/rajpatel72/au-heck/main/logs.json',
           { cache: 'no-store' }
         );
         if (!res.ok) throw new Error('No logs found yet.');
