@@ -1,47 +1,71 @@
 import { NextResponse } from 'next/server';
 
+/**
+ * API route: POST /api/log
+ * Receives { name, checkboxLabel, isChecked, timestamp }
+ * Appends it to logs.json in your GitHub repo using the GitHub API.
+ * Keeps only entries from the past 30 days.
+ */
+
 export async function POST(request) {
-  const { name, checkboxLabel, isChecked, timestamp } = await request.json();
+  try {
+    const { name, checkboxLabel, isChecked, timestamp } = await request.json();
 
-  const repo = process.env.GITHUB_REPO;
-  const token = process.env.GITHUB_TOKEN;
-  const filePath = 'logs.json';
+    if (!name || !checkboxLabel || typeof isChecked === 'undefined') {
+      return NextResponse.json(
+        { error: 'Missing required fields' },
+        { status: 400 }
+      );
+    }
 
-  // 1. Get current file content (if exists)
-  const existingFile = await fetch(
-    `https://api.github.com/repos/${repo}/contents/${filePath}`,
-    {
+    const repo = process.env.GITHUB_REPO; // e.g. "username/reponame"
+    const token = process.env.GITHUB_TOKEN;
+    const filePath = 'logs.json';
+    const apiUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+
+    // Fetch current logs.json from GitHub
+    const existingFile = await fetch(apiUrl, {
       headers: {
         Authorization: `Bearer ${token}`,
         Accept: 'application/vnd.github.v3+json',
       },
+      cache: 'no-store',
+    });
+
+    let logs = [];
+    let sha = null;
+
+    if (existingFile.ok) {
+      const data = await existingFile.json();
+      sha = data.sha;
+      const decoded = Buffer.from(data.content, 'base64').toString('utf-8');
+      logs = JSON.parse(decoded || '[]');
+    } else if (existingFile.status !== 404) {
+      // If it's not "file not found", throw an error
+      throw new Error(`Failed to fetch logs.json: ${existingFile.status}`);
     }
-  );
 
-  let sha = null;
-  let logs = [];
+    // Append new log
+    logs.push({
+      name,
+      checkboxLabel,
+      isChecked,
+      timestamp,
+    });
 
-  if (existingFile.ok) {
-    const data = await existingFile.json();
-    sha = data.sha;
-    const content = Buffer.from(data.content, 'base64').toString();
-    logs = JSON.parse(content);
-  }
+    // Keep only logs from the last 30 days
+    const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+    logs = logs.filter(
+      (log) => new Date(log.timestamp).getTime() > oneMonthAgo
+    );
 
-  // 2. Add new log entry
-  logs.push({ name, checkboxLabel, isChecked, timestamp });
+    // Convert to base64 for GitHub API
+    const encodedContent = Buffer.from(
+      JSON.stringify(logs, null, 2)
+    ).toString('base64');
 
-  // 3. Keep only last 30 days
-  const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  logs = logs.filter((log) => new Date(log.timestamp).getTime() > oneMonthAgo);
-
-  // 4. Encode updated file
-  const encoded = Buffer.from(JSON.stringify(logs, null, 2)).toString('base64');
-
-  // 5. Commit file to GitHub
-  const res = await fetch(
-    `https://api.github.com/repos/${repo}/contents/${filePath}`,
-    {
+    // Commit the updated file to GitHub
+    const response = await fetch(apiUrl, {
       method: 'PUT',
       headers: {
         Authorization: `Bearer ${token}`,
@@ -49,16 +73,22 @@ export async function POST(request) {
       },
       body: JSON.stringify({
         message: `Update logs - ${new Date().toISOString()}`,
-        content: encoded,
+        content: encodedContent,
         sha,
       }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`GitHub API error: ${errorText}`);
     }
-  );
 
-  if (!res.ok) {
-    const error = await res.text();
-    return NextResponse.json({ error }, { status: 500 });
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error('Error in /api/log:', err);
+    return NextResponse.json(
+      { error: err.message || 'Internal Server Error' },
+      { status: 500 }
+    );
   }
-
-  return NextResponse.json({ success: true });
 }
