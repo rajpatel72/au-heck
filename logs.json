@@ -28,5 +28,11 @@
     "checkboxLabel": "DOB",
     "isChecked": true,
     "timestamp": "2025-10-25T08:52:18.179Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "Supply Address",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:52:29.766Z"
   }
 ]
