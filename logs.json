@@ -4,5 +4,11 @@
     "checkboxLabel": "Check Name",
     "isChecked": true,
     "timestamp": "2025-10-25T08:18:32.408Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "Check Phone",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:18:33.003Z"
   }
 ]
