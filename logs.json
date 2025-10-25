@@ -16,5 +16,11 @@
     "checkboxLabel": "Check NMI",
     "isChecked": true,
     "timestamp": "2025-10-25T08:18:33.918Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "Mailing address",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:36:24.741Z"
   }
 ]
