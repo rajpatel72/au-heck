@@ -16,5 +16,11 @@
     "checkboxLabel": "Check DOB",
     "isChecked": true,
     "timestamp": "2025-10-25T08:01:41.138Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "Check NMI",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:01:41.951Z"
   }
 ]
