@@ -77,33 +77,35 @@ export default function SignupPage() {
 
   // Logging function - calls your /api/log endpoint
   const logAction = async (checkboxLabel, isChecked, meta = {}) => {
-    if (!name) {
-      alert('Please enter a customer name before checking.');
-      return;
-    }
+  if (!name) {
+    alert('Please enter a customer name before checking.');
+    return;
+  }
 
-    const timestamp = new Date().toISOString();
-    localStorage.setItem('lastName', name);
+  const timestamp = new Date().toISOString();
+  localStorage.setItem('lastName', name);
 
-    try {
-      const res = await fetch('/api/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name,
-          checkboxLabel,
-          isChecked,
-          timestamp,
-          meta, // optional metadata (site index, tariff type, etc.)
-        }),
-      });
-      if (!res.ok) {
-        console.error('Failed to save log:', await res.text());
-      }
-    } catch (err) {
-      console.error('Error logging action:', err);
+  try {
+    // Send to our new API route
+    const res = await fetch('/api/log', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name,
+        checkboxLabel,
+        isChecked,
+        timestamp,
+        meta,
+      }),
+    });
+    if (!res.ok) {
+      console.error('Failed to save log:', await res.text());
     }
-  };
+  } catch (err) {
+    console.error('Error logging action:', err);
+  }
+};
+
 
   // Handle check/uncheck for simple checklist item
   const handleCheck = (label) => {
