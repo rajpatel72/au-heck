@@ -1,27 +1,21 @@
-'use client';
-
-import { useEffect, useState } from 'react';
+// app/logs/page.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export default function LogsPage() {
-  const [logs, setLogs] = useState([]);
+export default async function LogsPage() {
+  const { data: logs, error } = await supabase
+    .from('logs')
+    .select('*')
+    .order('timestamp', { ascending: false });
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      const { data, error } = await supabase.from('logs').select('*').order('timestamp', { ascending: false });
-      if (error) {
-        console.error('Error fetching logs:', error);
-      } else {
-        setLogs(data);
-      }
-    };
-    fetchLogs();
-  }, []);
+  if (error) {
+    console.error(error);
+    return <p>Error loading logs</p>;
+  }
 
   return (
     <div style={{ padding: 24 }}>
