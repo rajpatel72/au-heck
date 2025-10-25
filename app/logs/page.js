@@ -14,23 +14,42 @@ export default function LogsPage() {
   useEffect(() => {
     const fetchLogs = async () => {
       const { data, error } = await supabase.from('logs').select('*').order('timestamp', { ascending: false });
-      if (error) console.error(error);
-      else setLogs(data);
+      if (error) {
+        console.error('Error fetching logs:', error);
+      } else {
+        setLogs(data);
+      }
     };
     fetchLogs();
   }, []);
 
   return (
-    <main style={{ padding:24,fontFamily:'Inter,Roboto' }}>
-      <h1>Action Logs</h1>
-      {logs.length===0 && <p>No logs yet.</p>}
-      <ul>
-        {logs.map((log)=>(
-          <li key={log.id} style={{ marginBottom:8 }}>
-            <strong>{log.timestamp}:</strong> {log.name} → {log.checkbox_label} — {log.is_checked ? 'Checked':'Unchecked'} {log.meta?.siteIndex && `(Site ${log.meta.siteIndex})`}
-          </li>
-        ))}
-      </ul>
-    </main>
+    <div style={{ padding: 24 }}>
+      <h2>Logs</h2>
+      {logs.length === 0 ? <p>No logs yet</p> :
+        <table border="1" cellPadding="6">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Checkbox</th>
+              <th>Checked</th>
+              <th>Time</th>
+              <th>Meta</th>
+            </tr>
+          </thead>
+          <tbody>
+            {logs.map((log) => (
+              <tr key={log.id}>
+                <td>{log.name}</td>
+                <td>{log.checkbox_label}</td>
+                <td>{log.is_checked ? '✔' : '✖'}</td>
+                <td>{new Date(log.timestamp).toLocaleString()}</td>
+                <td>{JSON.stringify(log.meta)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      }
+    </div>
   );
 }
