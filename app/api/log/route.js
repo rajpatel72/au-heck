@@ -1,94 +1,103 @@
 import { NextResponse } from 'next/server';
 
-/**
- * API route: POST /api/log
- * Receives { name, checkboxLabel, isChecked, timestamp }
- * Appends it to logs.json in your GitHub repo using the GitHub API.
- * Keeps only entries from the past 30 days.
- */
+const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
+const GITHUB_REPO = process.env.GITHUB_REPO; // should be "rajpatel72/au-heck"
+const FILE_PATH = 'logs.json';
 
-export async function POST(request) {
-  try {
-    const { name, checkboxLabel, isChecked, timestamp } = await request.json();
+// Helper: GitHub API base
+const GITHUB_API = `https://api.github.com/repos/${GITHUB_REPO}/contents/${FILE_PATH}`;
 
-    if (!name || !checkboxLabel || typeof isChecked === 'undefined') {
-      return NextResponse.json(
-        { error: 'Missing required fields' },
-        { status: 400 }
-      );
-    }
+// Read logs.json from GitHub
+async function getLogs() {
+  const res = await fetch(GITHUB_API, {
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: 'application/vnd.github+json',
+    },
+    cache: 'no-store',
+  });
 
-    const repo = process.env.GITHUB_REPO; // e.g. "username/reponame"
-    const token = process.env.GITHUB_TOKEN;
-    const filePath = 'logs.json';
-    const apiUrl = `https://api.github.com/repos/${repo}/contents/${filePath}`;
+  if (res.status === 404) {
+    return { data: [], sha: null }; // file doesn’t exist yet
+  }
 
-    // Fetch current logs.json from GitHub
-    const existingFile = await fetch(apiUrl, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
+  if (!res.ok) {
+    throw new Error(`GitHub fetch failed: ${res.statusText}`);
+  }
+
+  const json = await res.json();
+  const content = Buffer.from(json.content, 'base64').toString();
+  const data = JSON.parse(content || '[]');
+  return { data, sha: json.sha };
+}
+
+// Write updated logs.json to GitHub
+async function saveLogs(data, sha) {
+  const filtered = data.filter((log) => {
+    const now = new Date();
+    const oneMonthAgo = new Date();
+    oneMonthAgo.setDate(now.getDate() - 30);
+    return new Date(log.timestamp) >= oneMonthAgo;
+  });
+
+  const content = Buffer.from(JSON.stringify(filtered, null, 2)).toString('base64');
+
+  const res = await fetch(GITHUB_API, {
+    method: 'PUT',
+    headers: {
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Accept: 'application/vnd.github+json',
+    },
+    body: JSON.stringify({
+      message: 'Update logs.json',
+      content,
+      sha: sha || undefined,
+      committer: {
+        name: 'Vercel Bot',
+        email: 'vercel@app.com',
       },
-      cache: 'no-store',
-    });
+    }),
+  });
 
-    let logs = [];
-    let sha = null;
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`GitHub API error: ${text}`);
+  }
 
-    if (existingFile.ok) {
-      const data = await existingFile.json();
-      sha = data.sha;
-      const decoded = Buffer.from(data.content, 'base64').toString('utf-8');
-      logs = JSON.parse(decoded || '[]');
-    } else if (existingFile.status !== 404) {
-      // If it's not "file not found", throw an error
-      throw new Error(`Failed to fetch logs.json: ${existingFile.status}`);
-    }
+  return res.json();
+}
 
-    // Append new log
-    logs.push({
+// POST → Add new log entry
+export async function POST(req) {
+  try {
+    const { name, checkboxLabel, isChecked } = await req.json();
+    if (!name || !checkboxLabel)
+      return NextResponse.json({ error: 'Missing fields' }, { status: 400 });
+
+    const { data, sha } = await getLogs();
+    const newLog = {
       name,
       checkboxLabel,
       isChecked,
-      timestamp,
-    });
+      timestamp: new Date().toISOString(),
+    };
+    data.push(newLog);
 
-    // Keep only logs from the last 30 days
-    const oneMonthAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-    logs = logs.filter(
-      (log) => new Date(log.timestamp).getTime() > oneMonthAgo
-    );
-
-    // Convert to base64 for GitHub API
-    const encodedContent = Buffer.from(
-      JSON.stringify(logs, null, 2)
-    ).toString('base64');
-
-    // Commit the updated file to GitHub
-    const response = await fetch(apiUrl, {
-      method: 'PUT',
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: 'application/vnd.github.v3+json',
-      },
-      body: JSON.stringify({
-        message: `Update logs - ${new Date().toISOString()}`,
-        content: encodedContent,
-        sha,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`GitHub API error: ${errorText}`);
-    }
-
-    return NextResponse.json({ success: true });
+    await saveLogs(data, sha);
+    return NextResponse.json({ success: true, newLog });
   } catch (err) {
-    console.error('Error in /api/log:', err);
-    return NextResponse.json(
-      { error: err.message || 'Internal Server Error' },
-      { status: 500 }
-    );
+    console.error('POST /api/log error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+// GET → Return current logs
+export async function GET() {
+  try {
+    const { data } = await getLogs();
+    return NextResponse.json(data);
+  } catch (err) {
+    console.error('GET /api/log error:', err);
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
