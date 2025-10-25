@@ -266,9 +266,7 @@ export default function SignupPage() {
             {siteType === 'Multi' && (
               <>
                 {/* Items that are per-customer (not per-site) */}
-                {checklist
-                  .filter((i) => !i.toLowerCase().includes('for each approved site') && !i.toLowerCase().includes('for each tariff'))
-                  .map((item) => (
+                {checklist.map((item) => (
                     <label key={item} style={styles.checkboxLabel}>
                       <input
                         type="checkbox"
@@ -281,36 +279,7 @@ export default function SignupPage() {
                   ))}
 
                 {/* Per-site fields */}
-                <div style={{ marginTop: 12, paddingLeft: 6 }}>
-                  <h5 style={{ marginBottom: 8, color: '#444' }}>Per-site fields</h5>
-
-                  {/* Supply Address per site */}
-                  {renderMultiSiteFields('Supply Address')}
-
-                  {/* NMI per site */}
-                  {renderMultiSiteFields('NMI')}
-
-                  {/* Tariff screenshots: we show checkbox per site to indicate screenshot collected */}
-                  {Array.from({ length: siteCount }, (_, i) => {
-                    const idx = i + 1;
-                    const key = `Tariff screenshot - Site ${idx}`;
-                    return (
-                      <label key={key} style={styles.checkboxLabel}>
-                        <input
-                          type="checkbox"
-                          checked={!!checkedItems[key]}
-                          onChange={() => {
-                            const isChecked = !checkedItems[key];
-                            setCheckedItems((prev) => ({ ...prev, [key]: isChecked }));
-                            logAction('Tariff screenshot (if applicable)', isChecked, { siteIndex: idx });
-                          }}
-                          style={{ marginRight: 10 }}
-                        />
-                        One screenshot for each tariff type — Site {idx}
-                      </label>
-                    );
-                  })}
-                </div>
+                
               </>
             )}
           </div>
