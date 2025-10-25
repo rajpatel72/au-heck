@@ -4,248 +4,304 @@ import { useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
 
 export default function SignupPage() {
-  const router = useRouter();
-  const [name, setName] = useState('');
-  const [siteType, setSiteType] = useState('');
-  const [accountType, setAccountType] = useState('');
-  const [checkedItems, setCheckedItems] = useState({});
+const router = useRouter();
+const [name, setName] = useState('');
+const [checkedItems, setCheckedItems] = useState({});
+const [siteType, setSiteType] = useState('');
+const [accountType, setAccountType] = useState('');
 
-  // Load last used name from localStorage
-  useEffect(() => {
-    const savedName = localStorage.getItem('lastName');
-    if (savedName) setName(savedName);
-  }, []);
+useEffect(() => {
+const savedName = localStorage.getItem('lastName');
+if (savedName) setName(savedName);
+}, []);
 
-  // Function to log checkbox actions to the API
-  const logAction = async (checkboxLabel, isChecked) => {
-    if (!name) {
-      alert('Please enter a customer name before checking.');
-      return;
-    }
+const singlePersonal = [
+'Contact person name',
+'Mobile & Phone',
+'Email address',
+'DOB',
+'Mailing address',
+'Supply Address',
+'NMI',
+'ID Details',
+'Screenshot (if applicable)',
+];
 
-    const timestamp = new Date().toISOString();
-    localStorage.setItem('lastName', name);
+const singleBusiness = [
+'Company name',
+'ABN/ACN',
+'Contact person name',
+'Mobile & Phone',
+'Email address',
+'DOB',
+'Mailing address',
+'Supply Address',
+'NMI',
+'Rates screenshot (if applicable)',
+];
 
-    try {
-      const res = await fetch('/api/log', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, checkboxLabel, isChecked, timestamp }),
-      });
-      if (!res.ok) console.error('Log save failed:', await res.text());
-    } catch (err) {
-      console.error('Error logging action:', err);
-    }
-  };
+const multiPersonal = [
+'Contact person name',
+'Mobile & Phone',
+'Email address',
+'DOB',
+'Mailing address',
+'Supply Address for each approved site',
+'NMI for each approved site',
+'ID Details',
+'One screenshot for each tariff type (if applicable)',
+];
 
-  // Handle checkbox state + log
-  const handleCheck = (label) => {
-    const isChecked = !checkedItems[label];
-    setCheckedItems({ ...checkedItems, [label]: isChecked });
-    logAction(label, isChecked);
-  };
+const multiBusiness = [
+'Company name',
+'ABN/ACN',
+'Contact person name',
+'Mobile & Phone number',
+'Email address',
+'DOB',
+'Mailing address',
+'Supply Address for each approved site',
+'NMI for each approved site',
+'One screenshot for each tariff type (if applicable)',
+];
 
-  // Dynamic checklists
-  const personalChecklist = [
-    'Contact person name',
-    'Mobile & Phone',
-    'Email address',
-    'DOB',
-    'Mailing address',
-    'Supply Address',
-    'NMI',
-    'ID Details',
-    'Screenshot (if applicable)',
-  ];
+const getChecklist = () => {
+if (siteType === 'Single' && accountType === 'Personal') return singlePersonal;
+if (siteType === 'Single' && accountType === 'Business') return singleBusiness;
+if (siteType === 'Multi' && accountType === 'Personal') return multiPersonal;
+if (siteType === 'Multi' && accountType === 'Business') return multiBusiness;
+return [];
+};
 
-  const businessChecklist = [
-    'Company name',
-    'ABN/ACN',
-    'Contact person name',
-    'Mobile & Phone',
-    'Email address',
-    'DOB',
-    'Mailing address',
-    'Supply Address',
-    'NMI',
-    'Rates screenshot (if applicable)',
-  ];
+const logAction = async (checkboxLabel, isChecked) => {
+if (!name) {
+alert('Please enter a customer name before checking.');
+return;
+}
 
-  const checklist =
-    siteType === 'Single Site' && accountType === 'Personal Account'
-      ? personalChecklist
-      : siteType === 'Single Site' && accountType === 'Business Account'
-      ? businessChecklist
-      : siteType === 'Multi Site' && accountType === 'Personal Account'
-      ? personalChecklist
-      : siteType === 'Multi Site' && accountType === 'Business Account'
-      ? businessChecklist
-      : [];
+```
+const timestamp = new Date().toISOString();
+localStorage.setItem('lastName', name);
 
-  return (
-    <main
-      style={{
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        minHeight: '100vh',
-        background: '#f7f9fb',
-        fontFamily: 'system-ui, sans-serif',
-        padding: '40px 20px',
-      }}
-    >
-      <div
-        style={{
-          background: 'white',
-          padding: '40px',
-          borderRadius: '12px',
-          boxShadow: '0 4px 12px rgba(0,0,0,0.1)',
-          width: '100%',
-          maxWidth: '420px',
-        }}
-      >
-        <h2 style={{ textAlign: 'center', marginBottom: 20 }}>
-          Signup Documents
-        </h2>
+try {
+  const response = await fetch('/api/log', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      name,
+      checkboxLabel,
+      isChecked,
+      timestamp,
+    }),
+  });
 
-        {/* Customer name input */}
-        <input
-          type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          placeholder="Enter customer name"
-          style={inputStyle}
-        />
+  if (!response.ok) console.error('Failed to save log:', await response.text());
+} catch (error) {
+  console.error('Error logging action:', error);
+}
+```
 
-        {/* Step 1 - Choose site type */}
-        <div style={{ marginBottom: 20 }}>
-          <h4 style={{ marginBottom: 10 }}>Select Site Type:</h4>
-          <div style={buttonRow}>
-            {['Single Site', 'Multi Site'].map((type) => (
-              <button
-                key={type}
-                onClick={() => {
-                  setSiteType(type);
-                  setAccountType('');
-                  setCheckedItems({});
-                }}
-                style={{
-                  ...optionButton,
-                  background:
-                    siteType === type ? '#007bff' : 'white',
-                  color: siteType === type ? 'white' : '#007bff',
-                }}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
+};
 
-        {/* Step 2 - Choose account type */}
-        {siteType && (
-          <div style={{ marginBottom: 20 }}>
-            <h4 style={{ marginBottom: 10 }}>Select Account Type:</h4>
-            <div style={buttonRow}>
-              {['Personal Account', 'Business Account'].map((type) => (
-                <button
-                  key={type}
-                  onClick={() => {
-                    setAccountType(type);
-                    setCheckedItems({});
-                  }}
-                  style={{
-                    ...optionButton,
-                    background:
-                      accountType === type ? '#28a745' : 'white',
-                    color: accountType === type ? 'white' : '#28a745',
-                  }}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+const handleCheck = (label) => {
+const isChecked = !checkedItems[label];
+setCheckedItems({ ...checkedItems, [label]: isChecked });
+logAction(label, isChecked);
+};
 
-        {/* Step 3 - Dynamic checklist */}
-        {accountType && (
-          <div style={{ marginTop: 20 }}>
-            <h4 style={{ marginBottom: 10 }}>Checklist:</h4>
-            {checklist.map((item, i) => (
-              <label
-                key={i}
-                style={{
-                  display: 'block',
-                  marginBottom: '10px',
-                  textAlign: 'left',
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={!!checkedItems[item]}
-                  onChange={() => handleCheck(item)}
-                  style={{ marginRight: '8px' }}
-                />
-                {item}
-              </label>
-            ))}
-          </div>
-        )}
+const checklist = getChecklist();
 
-        {/* Buttons */}
-        <div style={{ marginTop: 30 }}>
-          <button onClick={() => router.push('/')} style={buttonStyle('#555')}>
-            Back
-          </button>
+return ( <main style={styles.main}> <div style={styles.card}> <h2 style={styles.title}>Signup Documents</h2>
 
+```
+    {/* Customer Name */}
+    <input
+      type="text"
+      value={name}
+      onChange={(e) => setName(e.target.value)}
+      placeholder="Enter customer name"
+      style={styles.input}
+    />
+
+    {/* Site Type Selection */}
+    <div style={styles.optionGroup}>
+      <h4 style={styles.optionTitle}>Select Site Type:</h4>
+      <div style={styles.buttonRow}>
+        <button
+          style={siteType === 'Single' ? styles.activeButton : styles.inactiveButton}
+          onClick={() => {
+            setSiteType('Single');
+            setAccountType('');
+            setCheckedItems({});
+          }}
+        >
+          Single Site
+        </button>
+        <button
+          style={siteType === 'Multi' ? styles.activeButton : styles.inactiveButton}
+          onClick={() => {
+            setSiteType('Multi');
+            setAccountType('');
+            setCheckedItems({});
+          }}
+        >
+          Multi Site
+        </button>
+      </div>
+    </div>
+
+    {/* Account Type Selection */}
+    {siteType && (
+      <div style={styles.optionGroup}>
+        <h4 style={styles.optionTitle}>Select Account Type:</h4>
+        <div style={styles.buttonRow}>
           <button
-            onClick={() => router.push('/log')}
-            style={buttonStyle('#007bff')}
+            style={accountType === 'Personal' ? styles.activeButton : styles.inactiveButton}
+            onClick={() => {
+              setAccountType('Personal');
+              setCheckedItems({});
+            }}
           >
-            View Logs
+            Personal Account Setup
+          </button>
+          <button
+            style={accountType === 'Business' ? styles.activeButton : styles.inactiveButton}
+            onClick={() => {
+              setAccountType('Business');
+              setCheckedItems({});
+            }}
+          >
+            Business Account Setup
           </button>
         </div>
       </div>
-    </main>
-  );
+    )}
+
+    {/* Checklist */}
+    {checklist.length > 0 && (
+      <div style={{ marginTop: 20 }}>
+        {checklist.map((item, i) => (
+          <label key={i} style={styles.checkboxLabel}>
+            <input
+              type="checkbox"
+              checked={!!checkedItems[item]}
+              onChange={() => handleCheck(item)}
+              style={{ marginRight: 10 }}
+            />
+            {item}
+          </label>
+        ))}
+      </div>
+    )}
+
+    {/* Buttons */}
+    <div style={{ marginTop: 30 }}>
+      <button onClick={() => router.push('/')} style={styles.secondaryButton}>
+        Back
+      </button>
+      <button onClick={() => router.push('/logs')} style={styles.primaryButton}>
+        View Logs
+      </button>
+    </div>
+  </div>
+</main>
+```
+
+);
 }
 
-// Styles
-const inputStyle = {
-  width: '100%',
-  padding: '10px',
-  borderRadius: '6px',
-  border: '1px solid #ccc',
-  marginBottom: '20px',
+const styles = {
+main: {
+display: 'flex',
+flexDirection: 'column',
+alignItems: 'center',
+justifyContent: 'center',
+minHeight: '100vh',
+background: 'linear-gradient(135deg, #eef2f3, #8e9eab)',
+fontFamily: 'Segoe UI, Roboto, sans-serif',
+padding: '20px',
+},
+card: {
+background: 'white',
+padding: '40px',
+borderRadius: '16px',
+boxShadow: '0 6px 20px rgba(0,0,0,0.1)',
+width: '100%',
+maxWidth: '480px',
+},
+title: {
+textAlign: 'center',
+fontSize: '24px',
+fontWeight: '600',
+marginBottom: '25px',
+color: '#333',
+},
+input: {
+width: '100%',
+padding: '12px',
+borderRadius: '8px',
+border: '1px solid #ccc',
+marginBottom: '20px',
+fontSize: '15px',
+},
+optionGroup: {
+marginBottom: '20px',
+},
+optionTitle: {
+fontSize: '16px',
+fontWeight: '500',
+marginBottom: '10px',
+color: '#444',
+},
+buttonRow: {
+display: 'flex',
+justifyContent: 'space-between',
+gap: '10px',
+},
+activeButton: {
+flex: 1,
+background: '#0070f3',
+color: 'white',
+border: 'none',
+borderRadius: '8px',
+padding: '10px',
+cursor: 'pointer',
+fontWeight: '500',
+},
+inactiveButton: {
+flex: 1,
+background: '#e0e0e0',
+color: '#333',
+border: 'none',
+borderRadius: '8px',
+padding: '10px',
+cursor: 'pointer',
+},
+checkboxLabel: {
+display: 'block',
+marginBottom: '10px',
+color: '#333',
+fontSize: '15px',
+},
+primaryButton: {
+background: '#007bff',
+color: 'white',
+border: 'none',
+borderRadius: '8px',
+padding: '12px',
+cursor: 'pointer',
+width: '100%',
+fontWeight: '500',
+marginTop: '10px',
+},
+secondaryButton: {
+background: '#555',
+color: 'white',
+border: 'none',
+borderRadius: '8px',
+padding: '12px',
+cursor: 'pointer',
+width: '100%',
+fontWeight: '500',
+},
 };
-
-const buttonRow = {
-  display: 'flex',
-  justifyContent: 'space-between',
-  gap: '10px',
-};
-
-const optionButton = {
-  flex: 1,
-  padding: '10px',
-  border: '2px solid #007bff',
-  borderRadius: '8px',
-  cursor: 'pointer',
-  fontWeight: 'bold',
-  transition: '0.2s ease',
-};
-
-function buttonStyle(color) {
-  return {
-    background: color,
-    color: 'white',
-    border: 'none',
-    borderRadius: '6px',
-    padding: '10px 20px',
-    cursor: 'pointer',
-    marginTop: '10px',
-    width: '100%',
-    fontWeight: 'bold',
-  };
-}
