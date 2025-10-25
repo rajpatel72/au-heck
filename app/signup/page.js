@@ -11,12 +11,13 @@ export default function SignupPage() {
   const [accountType, setAccountType] = useState(''); // 'Personal' | 'Business'
   const [siteCount, setSiteCount] = useState(1); // for multisite: number of approved sites
 
+  // Load last name
   useEffect(() => {
     const savedName = localStorage.getItem('lastName');
     if (savedName) setName(savedName);
   }, []);
 
-  // Checklists definitions
+  // ----- Checklists -----
   const singlePersonal = [
     'Contact person name',
     'Mobile & Phone',
@@ -75,46 +76,27 @@ export default function SignupPage() {
     return [];
   };
 
-  // Logging function - calls your /api/log endpoint
-  const logAction = async (checkboxLabel, isChecked, meta = {}) => {
-  if (!name) {
-    alert('Please enter a customer name before checking.');
-    return;
-  }
-
-  const timestamp = new Date().toISOString();
-  localStorage.setItem('lastName', name);
-
-  try {
-    // Send to our new API route
-    const res = await fetch('/api/log', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        name,
-        checkboxLabel,
-        isChecked,
-        timestamp,
-        meta,
-      }),
-    });
-    if (!res.ok) {
-      console.error('Failed to save log:', await res.text());
+  // ----- Client-side logging -----
+  const logAction = (checkboxLabel, isChecked, meta = {}) => {
+    if (!name) {
+      alert('Please enter a customer name before checking.');
+      return;
     }
-  } catch (err) {
-    console.error('Error logging action:', err);
-  }
-};
 
+    const timestamp = new Date().toISOString();
+    localStorage.setItem('lastName', name);
 
-  // Handle check/uncheck for simple checklist item
+    const logs = JSON.parse(localStorage.getItem('logs') || '[]');
+    logs.push({ name, checkboxLabel, isChecked, timestamp, meta });
+    localStorage.setItem('logs', JSON.stringify(logs));
+  };
+
   const handleCheck = (label) => {
     const isChecked = !checkedItems[label];
     setCheckedItems((prev) => ({ ...prev, [label]: isChecked }));
     logAction(label, isChecked);
   };
 
-  // For multisite repeated fields: create keys like "Supply Address - Site 1"
   const handleSiteCheck = (baseLabel, siteIndex) => {
     const key = `${baseLabel} - Site ${siteIndex}`;
     const isChecked = !checkedItems[key];
@@ -122,7 +104,6 @@ export default function SignupPage() {
     logAction(baseLabel, isChecked, { siteIndex });
   };
 
-  // Render repeated items for multisite
   const renderMultiSiteFields = (baseLabel) => {
     const arr = [];
     for (let i = 1; i <= siteCount; i += 1) {
@@ -143,6 +124,18 @@ export default function SignupPage() {
   };
 
   const checklist = getChecklist();
+
+  // ----- Download Logs -----
+  const downloadLogs = () => {
+    const logs = localStorage.getItem('logs') || '[]';
+    const blob = new Blob([logs], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'logs.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
 
   return (
     <main style={styles.main}>
@@ -181,7 +174,7 @@ export default function SignupPage() {
                 setSiteType('Multi');
                 setAccountType('');
                 setCheckedItems({});
-                setSiteCount(2); // default 2 approved sites (adjustable below)
+                setSiteCount(2);
               }}
               style={siteType === 'Multi' ? styles.activeButton : styles.inactiveButton}
             >
@@ -220,28 +213,18 @@ export default function SignupPage() {
           </div>
         )}
 
-        {/* For Multi-site: choose number of approved sites */}
+        {/* Multi-site count */}
         {siteType === 'Multi' && accountType && (
           <div style={{ marginTop: 14 }}>
-            <label style={{ display: 'block', marginBottom: 8, color: '#333' }}>
-              Number of approved sites:
-            </label>
+            <label style={{ display: 'block', marginBottom: 8, color: '#333' }}>Number of approved sites:</label>
             <input
               type="number"
               min={1}
               max={20}
               value={siteCount}
-              onChange={(e) => {
-                const v = Number(e.target.value) || 1;
-                setSiteCount(v);
-                // optionally clear site-specific checks
-                // setCheckedItems({});
-              }}
+              onChange={(e) => setSiteCount(Number(e.target.value) || 1)}
               style={{ width: 120, padding: 8, borderRadius: 6, border: '1px solid #ccc' }}
             />
-            <p style={{ fontSize: 12, color: '#666', marginTop: 6 }}>
-              (Set how many approved sites to show repeated fields for.)
-            </p>
           </div>
         )}
 
@@ -250,7 +233,7 @@ export default function SignupPage() {
           <div style={{ marginTop: 20 }}>
             <h4 style={{ marginBottom: 12 }}>Checklist</h4>
 
-            {/* Single-site or general items */}
+            {/* Single-site items */}
             {siteType === 'Single' &&
               checklist.map((item) => (
                 <label key={item} style={styles.checkboxLabel}>
@@ -264,11 +247,12 @@ export default function SignupPage() {
                 </label>
               ))}
 
-            {/* Multi-site: render generic items and per-site fields */}
+            {/* Multi-site items */}
             {siteType === 'Multi' && (
               <>
-                {/* Items that are per-customer (not per-site) */}
-                {checklist.map((item) => (
+                {checklist
+                  .filter((i) => !i.toLowerCase().includes('for each approved site') && !i.toLowerCase().includes('tariff'))
+                  .map((item) => (
                     <label key={item} style={styles.checkboxLabel}>
                       <input
                         type="checkbox"
@@ -280,8 +264,32 @@ export default function SignupPage() {
                     </label>
                   ))}
 
-                {/* Per-site fields */}
-                
+                <div style={{ marginTop: 12, paddingLeft: 6 }}>
+                  <h5 style={{ marginBottom: 8, color: '#444' }}>Per-site fields</h5>
+
+                  {renderMultiSiteFields('Supply Address')}
+                  {renderMultiSiteFields('NMI')}
+
+                  {Array.from({ length: siteCount }, (_, i) => {
+                    const idx = i + 1;
+                    const key = `Tariff screenshot - Site ${idx}`;
+                    return (
+                      <label key={key} style={styles.checkboxLabel}>
+                        <input
+                          type="checkbox"
+                          checked={!!checkedItems[key]}
+                          onChange={() => {
+                            const isChecked = !checkedItems[key];
+                            setCheckedItems((prev) => ({ ...prev, [key]: isChecked }));
+                            logAction('Tariff screenshot (if applicable)', isChecked, { siteIndex: idx });
+                          }}
+                          style={{ marginRight: 10 }}
+                        />
+                        One screenshot for each tariff type — Site {idx}
+                      </label>
+                    );
+                  })}
+                </div>
               </>
             )}
           </div>
@@ -295,120 +303,29 @@ export default function SignupPage() {
           <button type="button" onClick={() => router.push('/logs')} style={styles.primaryButton}>
             View Logs
           </button>
+          <button type="button" onClick={downloadLogs} style={styles.primaryButton}>
+            Download Logs
+          </button>
         </div>
       </div>
     </main>
   );
 }
 
-// Styles
+// ----- Styles -----
 const styles = {
-  main: {
-    display: 'flex',
-    justifyContent: 'center',
-    minHeight: '100vh',
-    background: 'linear-gradient(135deg,#eef2f3 0%,#d7e1ea 100%)',
-    fontFamily: 'Inter, Roboto, system-ui, -apple-system, "Segoe UI", Arial',
-    padding: 24,
-  },
-  card: {
-    width: '100%',
-    maxWidth: 760,
-    background: '#fff',
-    padding: 28,
-    borderRadius: 12,
-    boxShadow: '0 10px 30px rgba(16,24,40,0.08)',
-  },
-  title: {
-    margin: 0,
-    marginBottom: 18,
-    fontSize: 22,
-    fontWeight: 600,
-    color: '#111827',
-  },
-  input: {
-    width: '100%',
-    padding: 12,
-    borderRadius: 8,
-    border: '1px solid #e6eef6',
-    marginBottom: 16,
-    fontSize: 15,
-  },
-  optionGroup: {
-    marginBottom: 16,
-  },
-  optionTitle: {
-    margin: 0,
-    marginBottom: 8,
-    color: '#1f2937',
-    fontWeight: 600,
-  },
-  buttonRow: {
-    display: 'flex',
-    gap: 12,
-  },
-  activeButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    background: '#0366d6',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  inactiveButton: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    background: 'white',
-    color: '#0366d6',
-    border: '1px solid #dbeafe',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  activeButtonSecondary: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    background: '#059669',
-    color: 'white',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  inactiveButtonSecondary: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    background: 'white',
-    color: '#059669',
-    border: '1px solid #d1fae5',
-    cursor: 'pointer',
-    fontWeight: 600,
-  },
-  checkboxLabel: {
-    display: 'block',
-    marginBottom: 10,
-    color: '#111827',
-    fontSize: 15,
-  },
-  primaryButton: {
-    padding: 12,
-    borderRadius: 10,
-    background: '#0b69ff',
-    color: '#fff',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 700,
-  },
-  secondaryButton: {
-    padding: 12,
-    borderRadius: 10,
-    background: '#6b7280',
-    color: '#fff',
-    border: 'none',
-    cursor: 'pointer',
-    fontWeight: 700,
-  },
+  main: { display: 'flex', justifyContent: 'center', minHeight: '100vh', padding: 24, fontFamily: 'Inter, Roboto' },
+  card: { width: '100%', maxWidth: 760, background: '#fff', padding: 28, borderRadius: 12, boxShadow: '0 10px 30px rgba(16,24,40,0.08)' },
+  title: { margin: 0, marginBottom: 18, fontSize: 22, fontWeight: 600, color: '#111827' },
+  input: { width: '100%', padding: 12, borderRadius: 8, border: '1px solid #e6eef6', marginBottom: 16, fontSize: 15 },
+  optionGroup: { marginBottom: 16 },
+  optionTitle: { margin: 0, marginBottom: 8, color: '#1f2937', fontWeight: 600 },
+  buttonRow: { display: 'flex', gap: 12 },
+  activeButton: { flex: 1, padding: 10, borderRadius: 8, background: '#0366d6', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600 },
+  inactiveButton: { flex: 1, padding: 10, borderRadius: 8, background: 'white', color: '#0366d6', border: '1px solid #dbeafe', cursor: 'pointer', fontWeight: 600 },
+  activeButtonSecondary: { flex: 1, padding: 10, borderRadius: 8, background: '#059669', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 600 },
+  inactiveButtonSecondary: { flex: 1, padding: 10, borderRadius: 8, background: 'white', color: '#059669', border: '1px solid #d1fae5', cursor: 'pointer', fontWeight: 600 },
+  checkboxLabel: { display: 'block', marginBottom: 10, color: '#111827', fontSize: 15 },
+  primaryButton: { padding: 12, borderRadius: 10, background: '#0b69ff', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700 },
+  secondaryButton: { padding: 12, borderRadius: 10, background: '#6b7280', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700 },
 };
