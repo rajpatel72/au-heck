@@ -1,57 +1,39 @@
-'use client';
-
-import { useState, useEffect } from 'react';
+// app/logs/page.js
 import { createClient } from '@supabase/supabase-js';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
 );
 
-export default function LogsPage() {
-  const [logs, setLogs] = useState([]);
-  const [filteredLogs, setFilteredLogs] = useState([]);
-  const [searchName, setSearchName] = useState('');
-  const [filterChecked, setFilterChecked] = useState('all'); // 'all', 'checked', 'unchecked'
-  const [loading, setLoading] = useState(true);
+export default async function LogsPage({ searchParams }) {
+  const searchName = searchParams?.name || '';
+  const filterChecked = searchParams?.checked || 'all'; // 'all', 'checked', 'unchecked'
 
-  useEffect(() => {
-    fetchLogs();
-  }, []);
+  const { data: logs, error } = await supabase
+    .from('logs')
+    .select('*')
+    .order('timestamp', { ascending: false });
 
-  useEffect(() => {
-    applyFilters();
-  }, [logs, searchName, filterChecked]);
+  if (error) {
+    console.error(error);
+    return <p>Error loading logs</p>;
+  }
 
-  const fetchLogs = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('logs')
-      .select('*')
-      .order('timestamp', { ascending: false });
+  // Apply filters
+  let filteredLogs = logs;
+  if (searchName.trim() !== '') {
+    filteredLogs = filteredLogs.filter(log =>
+      log.name?.toLowerCase().includes(searchName.toLowerCase())
+    );
+  }
+  if (filterChecked === 'checked') {
+    filteredLogs = filteredLogs.filter(log => log.is_checked);
+  } else if (filterChecked === 'unchecked') {
+    filteredLogs = filteredLogs.filter(log => !log.is_checked);
+  }
 
-    if (error) {
-      console.error(error);
-      setLogs([]);
-    } else {
-      setLogs(data);
-    }
-    setLoading(false);
-  };
-
-  const applyFilters = () => {
-    let temp = [...logs];
-    if (searchName.trim() !== '') {
-      temp = temp.filter(log => log.name.toLowerCase().includes(searchName.toLowerCase()));
-    }
-    if (filterChecked === 'checked') {
-      temp = temp.filter(log => log.is_checked);
-    } else if (filterChecked === 'unchecked') {
-      temp = temp.filter(log => !log.is_checked);
-    }
-    setFilteredLogs(temp);
-  };
-
-  // Group logs by name
+  // Group logs by client name
   const groupedLogs = filteredLogs.reduce((acc, log) => {
     if (!acc[log.name]) acc[log.name] = [];
     acc[log.name].push(log);
@@ -63,25 +45,23 @@ export default function LogsPage() {
       <h1 style={styles.header}>Client Logs</h1>
 
       {/* Filters */}
-      <div style={styles.filters}>
+      <form method="get" style={styles.filters}>
         <input
           type="text"
+          name="name"
           placeholder="Search by client name..."
-          value={searchName}
-          onChange={e => setSearchName(e.target.value)}
+          defaultValue={searchName}
           style={styles.searchInput}
         />
-
-        <select value={filterChecked} onChange={e => setFilterChecked(e.target.value)} style={styles.select}>
+        <select name="checked" defaultValue={filterChecked} style={styles.select}>
           <option value="all">All</option>
           <option value="checked">Checked</option>
           <option value="unchecked">Unchecked</option>
         </select>
-      </div>
+        <button type="submit" style={styles.filterButton}>Filter</button>
+      </form>
 
-      {loading ? (
-        <p>Loading logs...</p>
-      ) : Object.keys(groupedLogs).length === 0 ? (
+      {Object.keys(groupedLogs).length === 0 ? (
         <p>No logs found.</p>
       ) : (
         Object.keys(groupedLogs).map(name => (
@@ -114,66 +94,16 @@ export default function LogsPage() {
   );
 }
 
-// --- Styles ---
 const styles = {
-  main: {
-    padding: 24,
-    fontFamily: 'Inter, Roboto, system-ui',
-    background: '#f3f4f6',
-    minHeight: '100vh',
-  },
-  header: {
-    fontSize: 28,
-    fontWeight: 700,
-    marginBottom: 20,
-    color: '#111827',
-  },
-  filters: {
-    display: 'flex',
-    gap: 12,
-    marginBottom: 24,
-  },
-  searchInput: {
-    flex: 1,
-    padding: 10,
-    borderRadius: 8,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-  },
-  select: {
-    padding: 10,
-    borderRadius: 8,
-    border: '1px solid #d1d5db',
-    fontSize: 14,
-  },
-  clientCard: {
-    background: '#fff',
-    borderRadius: 12,
-    padding: 20,
-    marginBottom: 20,
-    boxShadow: '0 8px 24px rgba(0,0,0,0.05)',
-  },
-  clientName: {
-    fontSize: 20,
-    fontWeight: 600,
-    marginBottom: 12,
-    color: '#1f2937',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  th: {
-    textAlign: 'left',
-    padding: '10px',
-    borderBottom: '2px solid #e5e7eb',
-    color: '#374151',
-    fontWeight: 600,
-  },
-  td: {
-    padding: '8px 10px',
-    borderBottom: '1px solid #e5e7eb',
-    color: '#4b5563',
-    fontSize: 14,
-  },
+  main: { padding: 24, fontFamily: 'Inter, Roboto, system-ui', background: '#f3f4f6', minHeight: '100vh' },
+  header: { fontSize: 28, fontWeight: 700, marginBottom: 20, color: '#111827' },
+  filters: { display: 'flex', gap: 12, marginBottom: 24 },
+  searchInput: { flex: 1, padding: 10, borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14 },
+  select: { padding: 10, borderRadius: 8, border: '1px solid #d1d5db', fontSize: 14 },
+  filterButton: { padding: 10, borderRadius: 8, background: '#0b69ff', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600 },
+  clientCard: { background: '#fff', borderRadius: 12, padding: 20, marginBottom: 20, boxShadow: '0 8px 24px rgba(0,0,0,0.05)' },
+  clientName: { fontSize: 20, fontWeight: 600, marginBottom: 12, color: '#1f2937' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { textAlign: 'left', padding: '10px', borderBottom: '2px solid #e5e7eb', color: '#374151', fontWeight: 600 },
+  td: { padding: '8px 10px', borderBottom: '1px solid #e5e7eb', color: '#4b5563', fontSize: 14 },
 };
