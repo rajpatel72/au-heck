@@ -22,5 +22,11 @@
     "checkboxLabel": "Check NMI",
     "isChecked": true,
     "timestamp": "2025-10-25T08:01:41.951Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "Check Supply Address",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:01:46.251Z"
   }
 ]
