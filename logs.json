@@ -22,5 +22,11 @@
     "checkboxLabel": "Email address",
     "isChecked": true,
     "timestamp": "2025-10-25T08:51:19.927Z"
+  },
+  {
+    "name": "Access Strata",
+    "checkboxLabel": "DOB",
+    "isChecked": true,
+    "timestamp": "2025-10-25T08:52:18.179Z"
   }
 ]
