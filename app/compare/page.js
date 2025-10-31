@@ -245,10 +245,10 @@ export default function ComparePage() {
         {data && (
           <div className="rounded-2xl border border-white/8 bg-gradient-to-bl from-white/3 to-white/2/5 p-4 backdrop-blur-lg shadow-2xl">
             {/* table container */}
-            <div className="overflow-x-auto rounded-lg">
-              <table className="min-w-full table-fixed border-collapse">
+            <div className="overflow-x-auto table-wrapper">
+              <table className="min-w-full table-fixed border-collapse modern-table">
                 <thead className="sticky top-0 z-10">
-                  <tr className="bg-gradient-to-r from-white/6 to-white/3 text-xs text-gray-300 uppercase tracking-wider">
+                  <tr className="table-header bg-gradient-to-r from-cyan-900/20 to-purple-900/20 text-xs text-cyan-300 uppercase tracking-wider">
                     <th className="p-3 text-left w-56">Field</th>
                     <th className="p-3 w-28">Usage</th>
                     <th className="p-3 w-32">Rate (¢)</th>
