@@ -75,7 +75,7 @@ export default function ComparePage() {
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r * 100).toFixed(4); // show ¢ up to 4 decimals
+    return (r / 100).toFixed(4); // show ¢ up to 4 decimals
   };
 
   return (
