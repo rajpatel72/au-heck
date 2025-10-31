@@ -1,27 +1,40 @@
 "use client";
 import React, { useEffect, useState } from "react";
 
+/**
+ * Electricity Tariff Comparison Tool
+ * Features:
+ * - Select network tariff
+ * - Enter usage + custom rates
+ * - Retailer auto-comparison
+ */
+
 export default function ComparePage() {
   const [tariffs, setTariffs] = useState([]);
-  const [selected, setSelected] = useState("");
+  const [selectedTariff, setSelectedTariff] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+
   const [userInputs, setUserInputs] = useState({});
   const [customRows, setCustomRows] = useState([]);
 
+  /** Load tariff list on page load */
   useEffect(() => {
     fetch("/api/tariffs")
       .then((res) => res.json())
       .then((list) => setTariffs(list.sort()))
-      .catch((err) => console.error("Failed to load tariffs:", err));
+      .catch((err) => console.error("Tariff load error:", err));
   }, []);
 
+  /** Run comparison */
   const handleCompare = async () => {
-    if (!selected) return;
+    if (!selectedTariff) return;
     setLoading(true);
+
     try {
-      const res = await fetch(`/api/compare?tariff=${encodeURIComponent(selected)}`);
+      const res = await fetch(`/api/compare?tariff=${encodeURIComponent(selectedTariff)}`);
       const result = await res.json();
+
       setData(result);
       setUserInputs({});
       setCustomRows([]);
@@ -32,6 +45,7 @@ export default function ComparePage() {
     }
   };
 
+  /** Default charges rows */
   const fields = [
     "Daily supply charge",
     "Peak",
@@ -47,117 +61,101 @@ export default function ComparePage() {
     "Solar",
   ];
 
+  /** No discount applies here */
   const noDiscountFields = ["Capacity Charges", "Demand 1", "Demand 2", "Solar"];
 
-  const handleInputChange = (rowType, field, key, value) => {
-    if (rowType === "custom") {
+  /** Retailer list */
+  const retailers = ["Origin", "Nectr", "Momentum", "NBE", "1St Energy"];
+
+  /** Render discount column? (based on API) */
+  const hasDiscountFor = {};
+  if (data) {
+    retailers.forEach((r) => {
+      hasDiscountFor[r] = data?.[r]?.Discount !== undefined && data?.[r]?.Discount !== null;
+    });
+  }
+
+  /** Handle input updates */
+  const handleInputChange = (type, field, key, value) => {
+    if (type === "custom") {
       setCustomRows((prev) =>
         prev.map((r) => (r.field === field ? { ...r, [key]: value } : r))
       );
-    } else {
-      setUserInputs((prev) => ({
-        ...prev,
-        [field]: { ...prev[field], [key]: value },
-      }));
+      return;
     }
+
+    setUserInputs((prev) => ({
+      ...prev,
+      [field]: { ...prev[field], [key]: value },
+    }));
   };
 
+  /** Add custom line row */
   const addCustomRow = () => {
-    const newRow = {
-      field: `Custom Row ${customRows.length + 1}`,
-      usage: "",
-      rate: "",
-      discount: "",
-      originRate: "",
-      originDiscount: "",
-      nectrRate: "",
-      nectrDiscount: "",
-      momentumRate: "",
-      momentumDiscount: "",
-      nbeRate: "",
-      nbeDiscount: "",
-    };
-    setCustomRows((prev) => [...prev, newRow]);
+    setCustomRows((prev) => [
+      ...prev,
+      {
+        field: `Custom ${prev.length + 1}`,
+        usage: "",
+        rate: "",
+        discount: "",
+        ...Object.fromEntries(
+          retailers.flatMap((r) => [
+            [`${r.toLowerCase()}Rate`, ""],
+            [`${r.toLowerCase()}Discount`, ""],
+          ])
+        ),
+      },
+    ]);
   };
 
+  /** Manual total */
   const calcTotal = (usage, rate, discount, field) => {
-    const u = parseFloat(usage || 0);
-    const r = parseFloat(rate || 0);
-    const d = parseFloat(discount || 0);
+    const u = +usage || 0;
+    const r = +rate || 0;
+    const d = +discount || 0;
     if (!u || !r) return "-";
     const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
     return (u * r * factor).toFixed(2);
   };
 
-  const calcRetailerTotal = (field, rateInDollars, discount, usage) => {
-    const usageVal = parseFloat(usage || 0);
-    // rateInDollars for network data and custom retailer inputs is in cents (like your data),
-    // calcRetailerTotal converts cents -> dollars by dividing by 100.
-    const rate = parseFloat(rateInDollars || 0) / 100;
-    const d = parseFloat(discount || 0);
-    if (!usageVal || !rate) return "-";
+  /** Retailer total */
+  const calcRetailerTotal = (field, rate, discount, usage) => {
+    const u = +usage || 0;
+    const r = (+rate || 0) / 100;
+    const d = +discount || 0;
+    if (!u || !r) return "-";
     const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
-    return (usageVal * rate * factor).toFixed(2);
+    return (u * r * factor).toFixed(2);
   };
 
-  const formatRate = (rate) => {
-    const r = parseFloat(rate);
-    if (isNaN(r)) return "-";
-    return (r / 100).toFixed(4); // show cents -> dollars with 4 decimals
-  };
-
-  // --- New: retailers list + discount presence map ---
-  const retailers = ["Origin", "Nectr", "Momentum", "NBE", "1St Energy"];
-  // hasDiscountFor: { Origin: true/false, ... }
-  const hasDiscountFor = {};
-  if (data) {
-    retailers.forEach((r) => {
-      // explicit check for undefined/null - if Discount not provided, treat as no-discount
-      hasDiscountFor[r] = typeof data?.[r]?.Discount !== "undefined" && data?.[r]?.Discount !== null;
-    });
-  }
-
-  // Sum totals for a column (manual + retailers) — corrected and respects missing discount columns
-  const totalForRetailer = (retailerKey) => {
+  /** Sum totals */
+  const totalForRetailer = (key) => {
     let total = 0;
 
-    // Sum default rows (fields from network data)
     fields.forEach((f) => {
       const usage = userInputs[f]?.usage;
-      const manualRate = userInputs[f]?.rate;
-      const manualDisc = userInputs[f]?.discount;
-
-      if (retailerKey === "manual") {
-        const valStr = calcTotal(usage, manualRate, manualDisc, f);
-        const val = parseFloat(valStr);
-        if (!isNaN(val)) total += val;
+      if (key === "manual") {
+        const v = parseFloat(calcTotal(usage, userInputs[f]?.rate, userInputs[f]?.discount, f));
+        if (!isNaN(v)) total += v;
       } else {
-        const rateFromData = parseFloat(data?.[retailerKey]?.[f]) || 0;
-        // if retailer doesn't have a Discount field, treat discount as 0
-        const discFromData = hasDiscountFor[retailerKey] ? parseFloat(data?.[retailerKey]?.Discount) || 0 : 0;
-        const valStr = calcRetailerTotal(f, rateFromData, discFromData, usage);
-        const val = parseFloat(valStr);
-        if (!isNaN(val)) total += val;
+        const r = +data?.[key]?.[f] || 0;
+        const d = hasDiscountFor[key] ? +data?.[key]?.Discount || 0 : 0;
+        const v = parseFloat(calcRetailerTotal(f, r, d, usage));
+        if (!isNaN(v)) total += v;
       }
     });
 
-    // Sum custom rows
     customRows.forEach((row) => {
       const u = row.usage;
-
-      if (retailerKey === "manual") {
-        const valStr = calcTotal(u, row.rate, row.discount, row.field);
-        const v = parseFloat(valStr);
+      if (key === "manual") {
+        const v = parseFloat(calcTotal(u, row.rate, row.discount, row.field));
         if (!isNaN(v)) total += v;
       } else {
-        const prefix = retailerKey.toLowerCase(); // "origin", "nectr", ...
-        const rate = row[`${prefix}Rate`];
-        // if the retailer doesn't have discount configured globally (hasDiscountFor false)
-        // we also hide the custom discount input — but here we treat missing as 0
-        const disc = hasDiscountFor[retailerKey] ? row[`${prefix}Discount`] : 0;
-
-        const valStr = calcRetailerTotal(row.field, rate, disc, u);
-        const v = parseFloat(valStr);
+        const prefix = key.toLowerCase();
+        const r = row[`${prefix}Rate`];
+        const d = hasDiscountFor[key] ? row[`${prefix}Discount`] : 0;
+        const v = parseFloat(calcRetailerTotal(row.field, r, d, u));
         if (!isNaN(v)) total += v;
       }
     });
@@ -166,170 +164,180 @@ export default function ComparePage() {
   };
 
   return (
-    <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold text-center mb-6">⚡ Electricity Rate Comparison</h1>
+    <main className="min-h-screen p-6 md:p-10 bg-gray-100">
+      <h1 className="text-3xl font-bold text-center mb-8">
+        ⚡ Electricity Tariff Comparison
+      </h1>
 
-      <div className="flex flex-col items-center gap-4 mb-8">
-        <select className="border px-4 py-2 rounded w-72" value={selected} onChange={(e) => setSelected(e.target.value)}>
+      {/* Selection box */}
+      <div className="flex flex-col md:flex-row gap-4 justify-center items-center mb-6">
+        <select
+          className="border p-2 rounded w-72"
+          value={selectedTariff}
+          onChange={(e) => setSelectedTariff(e.target.value)}
+        >
           <option value="">Select Network Tariff</option>
           {tariffs.map((t) => (
-            <option key={t} value={t}>
-              {t}
-            </option>
+            <option key={t} value={t}>{t}</option>
           ))}
         </select>
 
-        <button onClick={handleCompare} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
-          {loading ? "Loading..." : "Compare Rates"}
+        <button
+          onClick={handleCompare}
+          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 shadow"
+        >
+          {loading ? "Loading…" : "Compare Rates"}
         </button>
       </div>
 
+      {/* Table */}
       {data && (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border border-gray-300 bg-white shadow text-sm">
-            <thead className="bg-gray-100">
+        <div className="overflow-auto border rounded bg-white shadow-xl">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-200 sticky top-0 z-10">
               <tr>
-                <th className="p-2 border">Field</th>
+                <th className="p-2 border text-left">Field</th>
                 <th className="p-2 border bg-blue-50">Usage</th>
-                <th className="p-2 border bg-blue-50">Current Rate (¢)</th>
-                <th className="p-2 border bg-blue-50">Discount (%)</th>
+                <th className="p-2 border bg-blue-50">Manual Rate (¢)</th>
+                <th className="p-2 border bg-blue-50">Discount</th>
                 <th className="p-2 border bg-blue-50">Manual Total</th>
 
-                {/* dynamic retailer headers: rate, optional discount, total */}
-                {retailers.map((ret) => (
-                  <React.Fragment key={ret}>
-                    <th className="p-2 border">{ret} (¢)</th>
-                    {hasDiscountFor[ret] && <th className="p-2 border bg-gray-50">{ret} Discount (%)</th>}
-                    <th className="p-2 border bg-gray-50">{ret} Total</th>
+                {retailers.map((r) => (
+                  <React.Fragment key={r}>
+                    <th className="p-2 border">{r} (¢)</th>
+                    {hasDiscountFor[r] && <th className="p-2 border">{r} Disc</th>}
+                    <th className="p-2 border">{r} Total</th>
                   </React.Fragment>
                 ))}
               </tr>
             </thead>
 
             <tbody>
-              {fields.map((field) => {
-                const originRate = parseFloat(data.Origin?.[field]) || 0;
-                const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
-                const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
-                const nbeRate = parseFloat(data.NBE?.[field]) || 0;
-
-                const allEmpty = originRate === 0 && nectrRate === 0 && momentumRate === 0 && nbeRate === 0;
-                if (allEmpty) return null;
-
-                const originDisc = parseFloat(data.Origin?.["Discount"]) || 0;
-                const nectrDisc = parseFloat(data.Nectr?.["Discount"]) || 0;
-                const momentumDisc = parseFloat(data.Momentum?.["Discount"]) || 0;
-                const nbeDisc = parseFloat(data.NBE?.["Discount"]) || 0;
-
+              {fields.map((field, idx) => {
                 const usage = userInputs[field]?.usage || "";
-                const manualRate = userInputs[field]?.rate || "";
-                const manualDisc = userInputs[field]?.discount || "";
+                const rate = userInputs[field]?.rate || "";
+                const disc = userInputs[field]?.discount || "";
+
+                const retailerRate = (name) => parseFloat(data?.[name]?.[field]) || 0;
+                const retailerDisc = (name) =>
+                  hasDiscountFor[name] ? +data?.[name]?.Discount || 0 : 0;
 
                 return (
-                  <tr key={field} className="text-center hover:bg-gray-50">
-                    <td className="border p-2 text-left">{field}</td>
+                  <tr key={field} className={idx % 2 ? "bg-gray-50" : ""}>
+                    <td className="border p-2 font-medium">{field}</td>
 
-                    <td className="border p-2">
+                    <td className="border p-1 text-center">
                       <input
                         type="number"
                         value={usage}
-                        onChange={(e) => handleInputChange("default", field, "usage", e.target.value)}
-                        className="w-20 border rounded px-2 py-1 text-sm"
+                        onChange={(e) =>
+                          handleInputChange("default", field, "usage", e.target.value)
+                        }
+                        className="w-20 border rounded p-1"
                       />
                     </td>
 
-                    <td className="border p-2">
+                    <td className="border p-1 text-center">
                       <input
                         type="number"
-                        value={manualRate}
-                        onChange={(e) => handleInputChange("default", field, "rate", e.target.value)}
-                        className="w-24 border rounded px-2 py-1 text-sm"
+                        value={rate}
+                        onChange={(e) =>
+                          handleInputChange("default", field, "rate", e.target.value)
+                        }
+                        className="w-20 border rounded p-1"
                       />
                     </td>
 
-                    <td className="border p-2">
+                    <td className="border p-1 text-center">
                       <input
                         type="number"
-                        value={manualDisc}
-                        onChange={(e) => handleInputChange("default", field, "discount", e.target.value)}
-                        className="w-20 border rounded px-2 py-1 text-sm"
                         disabled={noDiscountFields.includes(field)}
+                        value={disc}
+                        onChange={(e) =>
+                          handleInputChange("default", field, "discount", e.target.value)
+                        }
+                        className="w-16 border rounded p-1 disabled:bg-gray-200"
                       />
                     </td>
 
-                    <td className="border p-2 font-semibold text-blue-700">{calcTotal(usage, manualRate, manualDisc, field)}</td>
+                    <td className="border p-2 text-blue-700 font-semibold">
+                      {calcTotal(usage, rate, disc, field)}
+                    </td>
 
-                    {/* Retailer cells rendered according to hasDiscountFor */}
-                    {/* Origin */}
-                    <td className="border p-2">{formatRate(originRate)}</td>
-                    {hasDiscountFor["Origin"] && <td className="border p-2 bg-gray-50">{originDisc}%</td>}
-                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, originRate, originDisc, usage)}</td>
-
-                    {/* Nectr */}
-                    <td className="border p-2">{formatRate(nectrRate)}</td>
-                    {hasDiscountFor["Nectr"] && <td className="border p-2 bg-gray-50">{nectrDisc}%</td>}
-                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, nectrRate, nectrDisc, usage)}</td>
-
-                    {/* Momentum */}
-                    <td className="border p-2">{formatRate(momentumRate)}</td>
-                    {hasDiscountFor["Momentum"] && <td className="border p-2 bg-gray-50">{momentumDisc}%</td>}
-                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, momentumRate, momentumDisc, usage)}</td>
-
-                    {/* NBE */}
-                    <td className="border p-2">{formatRate(nbeRate)}</td>
-                    {hasDiscountFor["NBE"] && <td className="border p-2 bg-gray-50">{nbeDisc}%</td>}
-                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, nbeRate, nbeDisc, usage)}</td>
+                    {retailers.map((r) => (
+                      <React.Fragment key={r}>
+                        <td className="border p-2 text-center">
+                          {(retailerRate(r) / 100).toFixed(4)}
+                        </td>
+                        {hasDiscountFor[r] && (
+                          <td className="border p-2 text-center">
+                            {retailerDisc(r)}%
+                          </td>
+                        )}
+                        <td className="border p-2 text-center">
+                          {calcRetailerTotal(field, retailerRate(r), retailerDisc(r), usage)}
+                        </td>
+                      </React.Fragment>
+                    ))}
                   </tr>
                 );
               })}
 
-              {/* Custom Rows */}
-              {customRows.map((row) => (
-                <tr key={row.field} className="text-center bg-yellow-50">
-                  <td className="border p-2 text-left font-medium">{row.field}</td>
+              {/* Custom Input Rows */}
+              {customRows.map((row, idx) => (
+                <tr key={row.field} className="bg-yellow-50">
+                  <td className="border p-2 font-medium">{row.field}</td>
 
-                  {/* usage, manual rate, manual discount */}
-                  {["usage", "rate", "discount"].map((key) => (
-                    <td key={key} className="border p-2">
+                  {["usage", "rate", "discount"].map((k) => (
+                    <td key={k} className="border p-1 text-center">
                       <input
                         type="number"
-                        value={row[key]}
-                        onChange={(e) => handleInputChange("custom", row.field, key, e.target.value)}
-                        className="w-20 border rounded px-2 py-1 text-sm"
+                        value={row[k]}
+                        onChange={(e) => handleInputChange("custom", row.field, k, e.target.value)}
+                        className="w-20 border rounded p-1"
                       />
                     </td>
                   ))}
 
-                  <td className="border p-2 font-semibold text-blue-700">{calcTotal(row.usage, row.rate, row.discount, row.field)}</td>
+                  <td className="border p-2 font-bold text-blue-700">
+                    {calcTotal(row.usage, row.rate, row.discount, row.field)}
+                  </td>
 
-                  {/* For each retailer: rate input, optional discount input, total cell */}
-                  {retailers.map((ret) => {
-                    const prefix = ret.toLowerCase(); // origin, nectr, ...
+                  {retailers.map((r) => {
+                    const key = r.toLowerCase();
                     return (
-                      <React.Fragment key={ret}>
-                        <td className="border p-2">
+                      <React.Fragment key={r}>
+                        <td className="border p-1 text-center">
                           <input
                             type="number"
-                            value={row[`${prefix}Rate`]}
-                            onChange={(e) => handleInputChange("custom", row.field, `${prefix}Rate`, e.target.value)}
-                            className="w-24 border rounded px-2 py-1 text-sm"
+                            value={row[`${key}Rate`]}
+                            onChange={(e) =>
+                              handleInputChange("custom", row.field, `${key}Rate`, e.target.value)
+                            }
+                            className="w-20 border rounded p-1"
                           />
                         </td>
 
-                        {/* only show discount input if retailer has discount configured */}
-                        {hasDiscountFor[ret] && (
-                          <td className="border p-2 bg-gray-50">
+                        {hasDiscountFor[r] && (
+                          <td className="border p-1 text-center">
                             <input
                               type="number"
-                              value={row[`${prefix}Discount`]}
-                              onChange={(e) => handleInputChange("custom", row.field, `${prefix}Discount`, e.target.value)}
-                              className="w-20 border rounded px-2 py-1 text-sm"
+                              value={row[`${key}Discount`]}
+                              onChange={(e) =>
+                                handleInputChange("custom", row.field, `${key}Discount`, e.target.value)
+                              }
+                              className="w-16 border rounded p-1"
                             />
                           </td>
                         )}
 
-                        <td className="border p-2 bg-gray-50">
-                          {calcRetailerTotal(row.field, row[`${prefix}Rate`], hasDiscountFor[ret] ? row[`${prefix}Discount`] : 0, row.usage)}
+                        <td className="border p-2 text-center">
+                          {calcRetailerTotal(
+                            row.field,
+                            row[`${key}Rate`],
+                            hasDiscountFor[r] ? row[`${key}Discount`] : 0,
+                            row.usage
+                          )}
                         </td>
                       </React.Fragment>
                     );
@@ -337,28 +345,37 @@ export default function ComparePage() {
                 </tr>
               ))}
 
-              {/* TOTAL row - respects whether each retailer has a discount column (we still show totals regardless) */}
-              <tr className="font-bold bg-blue-100 text-center">
-                <td className="border p-2 text-left">TOTAL</td>
-                <td className="border p-2"></td>
-                <td className="border p-2"></td>
-                <td className="border p-2"></td>
+              {/* Total Row */}
+              <tr className="bg-blue-200 font-bold">
+                <td className="border p-2">TOTAL</td>
+                <td className="border"></td>
+                <td className="border"></td>
+                <td className="border"></td>
 
                 <td className="border p-2 text-blue-700">{totalForRetailer("manual")}</td>
 
-                {/* render totals for each retailer with placeholder empty header cells aligned to their columns */}
-                {retailers.map((ret) => (
-                  <React.Fragment key={ret}>
-                    <td className="border p-2"></td>
-                    {hasDiscountFor[ret] && <td className="border p-2"></td>}
-                    <td className="border p-2 bg-gray-50">{totalForRetailer(ret)}</td>
+                {retailers.map((r) => (
+                  <React.Fragment key={r}>
+                    <td className="border"></td>
+                    {hasDiscountFor[r] && <td className="border"></td>}
+                    <td className="border p-2">{totalForRetailer(r)}</td>
                   </React.Fragment>
                 ))}
               </tr>
             </tbody>
           </table>
+        </div>
+      )}
 
-          
+      {/* Add custom row button */}
+      {data && (
+        <div className="text-center mt-4">
+          <button
+            onClick={addCustomRow}
+            className="bg-green-600 text-white px-5 py-2 rounded shadow hover:bg-green-700"
+          >
+            + Add Custom Charge Row
+          </button>
         </div>
       )}
     </main>
