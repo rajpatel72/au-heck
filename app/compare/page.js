@@ -62,7 +62,7 @@ export default function ComparePage() {
 
   const calcRetailerTotal = (field, rateInDollars, discount) => {
     const usage = parseFloat(userInputs[field]?.usage || 0);
-    const rate = parseFloat(rateInDollars || 0) * 100; // convert $ → ¢
+    const rate = parseFloat(rateInDollars || 0) / 100; // convert $ → ¢
     const d = parseFloat(discount || 0);
     if (!usage || !rate) return "-";
     const discountFactor = noDiscountFields.includes(field)
