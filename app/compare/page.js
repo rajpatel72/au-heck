@@ -107,7 +107,7 @@ export default function ComparePage() {
   };
 
   // --- New: retailers list + discount presence map ---
-  const retailers = ["Origin", "Nectr", "Momentum", "NBE"];
+  const retailers = ["Origin", "Nectr", "Momentum", "NBE", "1St Energy"];
   // hasDiscountFor: { Origin: true/false, ... }
   const hasDiscountFor = {};
   if (data) {
