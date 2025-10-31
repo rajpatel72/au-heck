@@ -1,5 +1,4 @@
 "use client";
-
 import { useEffect, useState } from "react";
 
 export default function ComparePage() {
@@ -7,6 +6,7 @@ export default function ComparePage() {
   const [selected, setSelected] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [userInputs, setUserInputs] = useState({}); // 👈 store usage + current rate
 
   // Fetch tariff list once
   useEffect(() => {
@@ -21,6 +21,7 @@ export default function ComparePage() {
     const res = await fetch(`/api/compare?tariff=${encodeURIComponent(selected)}`);
     const result = await res.json();
     setData(result);
+    setUserInputs({}); // reset on new selection
     setLoading(false);
   };
 
@@ -37,6 +38,23 @@ export default function ComparePage() {
     "Demand 1",
     "Demand 2",
   ];
+
+  const handleInputChange = (field, key, value) => {
+    setUserInputs((prev) => ({
+      ...prev,
+      [field]: {
+        ...prev[field],
+        [key]: value,
+      },
+    }));
+  };
+
+  const calculateTotal = (field) => {
+    const usage = parseFloat(userInputs[field]?.usage || 0);
+    const rate = parseFloat(userInputs[field]?.rate || 0);
+    if (isNaN(usage) || isNaN(rate)) return "-";
+    return (usage * rate).toFixed(2);
+  };
 
   return (
     <main className="min-h-screen p-8">
@@ -76,16 +94,56 @@ export default function ComparePage() {
                 <th className="p-2 border">Nectr</th>
                 <th className="p-2 border">Momentum</th>
                 <th className="p-2 border">NBE</th>
+
+                {/* new columns */}
+                <th className="p-2 border bg-blue-50">Usage</th>
+                <th className="p-2 border bg-blue-50">Current Rate</th>
+                <th className="p-2 border bg-blue-50">Total</th>
               </tr>
             </thead>
             <tbody>
               {fields.map((field) => (
-                <tr key={field}>
+                <tr key={field} className="text-center">
                   <td className="border p-2 font-medium">{field}</td>
-                  <td className="border p-2 text-center">{data.Origin?.[field] || "-"}</td>
-                  <td className="border p-2 text-center">{data.Nectr?.[field] || "-"}</td>
-                  <td className="border p-2 text-center">{data.Momentum?.[field] || "-"}</td>
-                  <td className="border p-2 text-center">{data.NBE?.[field] || "-"}</td>
+                  <td className="border p-2">{data.Origin?.[field] || "-"}</td>
+                  <td className="border p-2">{data.Nectr?.[field] || "-"}</td>
+                  <td className="border p-2">{data.Momentum?.[field] || "-"}</td>
+                  <td className="border p-2">{data.NBE?.[field] || "-"}</td>
+
+                  {/* Input for usage */}
+                  <td className="border p-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={userInputs[field]?.usage || ""}
+                      onChange={(e) =>
+                        handleInputChange(field, "usage", e.target.value)
+                      }
+                      className="w-24 border rounded px-2 py-1 text-sm"
+                      placeholder="kWh"
+                    />
+                  </td>
+
+                  {/* Input for current rate */}
+                  <td className="border p-2">
+                    <input
+                      type="number"
+                      min="0"
+                      step="any"
+                      value={userInputs[field]?.rate || ""}
+                      onChange={(e) =>
+                        handleInputChange(field, "rate", e.target.value)
+                      }
+                      className="w-24 border rounded px-2 py-1 text-sm"
+                      placeholder="¢/kWh"
+                    />
+                  </td>
+
+                  {/* Total = Usage × Rate */}
+                  <td className="border p-2 font-semibold text-blue-700">
+                    {calculateTotal(field)}
+                  </td>
                 </tr>
               ))}
             </tbody>
