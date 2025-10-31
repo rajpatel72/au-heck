@@ -67,7 +67,7 @@ export default function ComparePage() {
       : 1 - discount / 100;
 
     const total = usage * rate * discountFactor;
-    return total.toFixed(2);
+    return total.toFixed(4);
   };
 
   // --- Retailer Total: Usage × (Rate × 100) × (1 - Discount%)
@@ -83,14 +83,14 @@ export default function ComparePage() {
       : 1 - d / 100;
 
     const total = usage * rate * discountFactor;
-    return total.toFixed(2);
+    return total.toFixed(4);
   };
 
   // Format rates to always show ¢ instead of $
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r / 100).toFixed(2); // convert to cents
+    return (r / 100).toFixed(4); // convert to cents
   };
 
   return (
@@ -175,7 +175,11 @@ export default function ComparePage() {
                         type="number"
                         min="0"
                         step="any"
-                        value={userInputs[field]?.usage || ""}
+                        value={
+  userInputs[field]?.rate
+    ? parseFloat(userInputs[field]?.rate).toFixed(4)
+    : ""
+}
                         onChange={(e) =>
                           handleInputChange(field, "usage", e.target.value)
                         }
