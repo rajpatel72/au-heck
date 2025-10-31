@@ -7,6 +7,7 @@ export default function ComparePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userInputs, setUserInputs] = useState({});
+  const [customRows, setCustomRows] = useState([]); // ✅ stores user-added rows
 
   useEffect(() => {
     fetch("/api/tariffs")
@@ -75,7 +76,23 @@ export default function ComparePage() {
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r / 100).toFixed(4); // show ¢ up to 4 decimals
+    return (r / 100).toFixed(4);
+  };
+
+  // ✅ Add a new blank custom row
+  const handleAddRow = () => {
+    const newField = `Custom ${customRows.length + 1}`;
+    setCustomRows((prev) => [...prev, newField]);
+  };
+
+  // ✅ Remove a specific custom row
+  const handleRemoveRow = (field) => {
+    setCustomRows((prev) => prev.filter((f) => f !== field));
+    setUserInputs((prev) => {
+      const updated = { ...prev };
+      delete updated[field];
+      return updated;
+    });
   };
 
   return (
@@ -132,18 +149,19 @@ export default function ComparePage() {
                 <th className="p-2 border">NBE (¢)</th>
                 <th className="p-2 border bg-gray-50">NBE Discount (%)</th>
                 <th className="p-2 border bg-gray-50">NBE Total</th>
+                <th className="p-2 border">Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {fields.map((field) => {
+              {[...fields, ...customRows].map((field) => {
                 const originRate = parseFloat(data.Origin?.[field]) || 0;
                 const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
                 const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
                 const nbeRate = parseFloat(data.NBE?.[field]) || 0;
 
-                // ✅ skip if all retailer rates are missing/zero
                 const allEmpty =
+                  !customRows.includes(field) &&
                   originRate === 0 &&
                   nectrRate === 0 &&
                   momentumRate === 0 &&
@@ -157,7 +175,9 @@ export default function ComparePage() {
 
                 return (
                   <tr key={field} className="text-center hover:bg-gray-50">
-                    <td className="border p-2 font-medium text-left">{field}</td>
+                    <td className="border p-2 font-medium text-left">
+                      {field}
+                    </td>
 
                     <td className="border p-2">
                       <input
@@ -198,7 +218,10 @@ export default function ComparePage() {
                         }
                         className="w-20 border rounded px-2 py-1 text-sm"
                         placeholder="%"
-                        disabled={noDiscountFields.includes(field)}
+                        disabled={
+                          noDiscountFields.includes(field) &&
+                          !customRows.includes(field)
+                        }
                       />
                     </td>
 
@@ -206,35 +229,66 @@ export default function ComparePage() {
                       {calcManualTotal(field)}
                     </td>
 
-                    {/* Retailers */}
-                    <td className="border p-2">{formatRate(originRate)}</td>
-                    <td className="border p-2 bg-gray-50">{originDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, originRate, originDisc)}
-                    </td>
+                    {/* Retailer Columns (hidden for custom rows) */}
+                    {customRows.includes(field) ? (
+                      <>
+                        <td className="border p-2" colSpan="12">
+                          (Custom Row - no retailer data)
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="border p-2">{formatRate(originRate)}</td>
+                        <td className="border p-2 bg-gray-50">{originDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, originRate, originDisc)}
+                        </td>
 
-                    <td className="border p-2">{formatRate(nectrRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nectrRate, nectrDisc)}
-                    </td>
+                        <td className="border p-2">{formatRate(nectrRate)}</td>
+                        <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, nectrRate, nectrDisc)}
+                        </td>
 
-                    <td className="border p-2">{formatRate(momentumRate)}</td>
-                    <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, momentumRate, momentumDisc)}
-                    </td>
+                        <td className="border p-2">{formatRate(momentumRate)}</td>
+                        <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, momentumRate, momentumDisc)}
+                        </td>
 
-                    <td className="border p-2">{formatRate(nbeRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nbeRate, nbeDisc)}
+                        <td className="border p-2">{formatRate(nbeRate)}</td>
+                        <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, nbeRate, nbeDisc)}
+                        </td>
+                      </>
+                    )}
+
+                    <td className="border p-2">
+                      {customRows.includes(field) && (
+                        <button
+                          onClick={() => handleRemoveRow(field)}
+                          className="text-red-600 hover:underline"
+                        >
+                          ✕
+                        </button>
+                      )}
                     </td>
                   </tr>
                 );
               })}
             </tbody>
           </table>
+
+          {/* ✅ Add Row Button */}
+          <div className="text-center mt-4">
+            <button
+              onClick={handleAddRow}
+              className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
+            >
+              + Add Custom Row
+            </button>
+          </div>
         </div>
       )}
     </main>
