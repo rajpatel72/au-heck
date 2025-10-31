@@ -388,7 +388,7 @@ const totalForRetailer = (retailerKey) => {
             </tbody>
           </table>
 
-         {/* <div className="mt-4 flex justify-end"> <button    onClick={addCustomRow}   className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700" >   ➕ Add Custom Row  </button>   </div> /*}
+         
         </div>
       )}
     </main>
