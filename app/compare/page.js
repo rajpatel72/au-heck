@@ -6,9 +6,8 @@ export default function ComparePage() {
   const [selected, setSelected] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [userInputs, setUserInputs] = useState({}); // usage + rate + discount per field
+  const [userInputs, setUserInputs] = useState({});
 
-  // Fetch tariff list once
   useEffect(() => {
     fetch("/api/tariffs")
       .then((res) => res.json())
@@ -40,57 +39,43 @@ export default function ComparePage() {
     "Solar",
   ];
 
-  // Fields where discount is NOT applied
   const noDiscountFields = ["Capacity Charges", "Demand 1", "Demand 2", "Solar"];
 
-  // Handle manual input
   const handleInputChange = (field, key, value) => {
     setUserInputs((prev) => ({
       ...prev,
-      [field]: {
-        ...prev[field],
-        [key]: value,
-      },
+      [field]: { ...prev[field], [key]: value },
     }));
   };
 
-  // --- Manual Total: Usage × Rate × (1 - Discount%)
   const calcManualTotal = (field) => {
     const usage = parseFloat(userInputs[field]?.usage || 0);
     const rate = parseFloat(userInputs[field]?.rate || 0);
     const discount = parseFloat(userInputs[field]?.discount || 0);
-
     if (!usage || !rate) return "-";
-
     const discountFactor = noDiscountFields.includes(field)
       ? 1
       : 1 - discount / 100;
-
     const total = usage * rate * discountFactor;
     return total.toFixed(2);
   };
 
-  // --- Retailer Total: Usage × (Rate × 100) × (1 - Discount%)
   const calcRetailerTotal = (field, rateInDollars, discount) => {
     const usage = parseFloat(userInputs[field]?.usage || 0);
-    const rate = parseFloat(rateInDollars || 0) / 100; // convert $ → ¢
+    const rate = parseFloat(rateInDollars || 0) * 100; // convert $ → ¢
     const d = parseFloat(discount || 0);
-
     if (!usage || !rate) return "-";
-
     const discountFactor = noDiscountFields.includes(field)
       ? 1
       : 1 - d / 100;
-
     const total = usage * rate * discountFactor;
     return total.toFixed(2);
   };
 
-  // Format rates to always show ¢ instead of $
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r / 100).toFixed(4); // convert to cents
+    return (r * 100).toFixed(4); // show ¢ up to 4 decimals
   };
 
   return (
@@ -127,14 +112,11 @@ export default function ComparePage() {
             <thead className="bg-gray-100">
               <tr>
                 <th className="p-2 border">Field</th>
-
-                {/* Manual Input Columns */}
                 <th className="p-2 border bg-blue-50">Usage</th>
                 <th className="p-2 border bg-blue-50">Current Rate (¢)</th>
                 <th className="p-2 border bg-blue-50">Discount (%)</th>
                 <th className="p-2 border bg-blue-50">Manual Total</th>
 
-                {/* Retailer Columns */}
                 <th className="p-2 border">Origin (¢)</th>
                 <th className="p-2 border bg-gray-50">Origin Discount (%)</th>
                 <th className="p-2 border bg-gray-50">Origin Total</th>
@@ -160,6 +142,14 @@ export default function ComparePage() {
                 const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
                 const nbeRate = parseFloat(data.NBE?.[field]) || 0;
 
+                // ✅ skip if all retailer rates are missing/zero
+                const allEmpty =
+                  originRate === 0 &&
+                  nectrRate === 0 &&
+                  momentumRate === 0 &&
+                  nbeRate === 0;
+                if (allEmpty) return null;
+
                 const originDisc = parseFloat(data.Origin?.["Discount"]) || 0;
                 const nectrDisc = parseFloat(data.Nectr?.["Discount"]) || 0;
                 const momentumDisc = parseFloat(data.Momentum?.["Discount"]) || 0;
@@ -169,13 +159,12 @@ export default function ComparePage() {
                   <tr key={field} className="text-center hover:bg-gray-50">
                     <td className="border p-2 font-medium text-left">{field}</td>
 
-                    {/* Manual Inputs */}
                     <td className="border p-2">
                       <input
                         type="number"
                         min="0"
                         step="any"
-                        value={userInputs[field]?.rate || ""}
+                        value={userInputs[field]?.usage || ""}
                         onChange={(e) =>
                           handleInputChange(field, "usage", e.target.value)
                         }
