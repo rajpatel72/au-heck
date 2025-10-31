@@ -104,40 +104,56 @@ export default function ComparePage() {
     return (r / 100).toFixed(4); // show $→¢ with 4 decimals
   };
 
-  // ✅ Sum totals for a column (manual + retailers)
+  // Sum totals for a column (manual + retailers) — corrected
 const totalForRetailer = (retailerKey) => {
   let total = 0;
 
-  // ✅ Sum default rows
+  // Sum default rows (fields from network data)
   fields.forEach((f) => {
     const usage = userInputs[f]?.usage;
     const manualRate = userInputs[f]?.rate;
     const manualDisc = userInputs[f]?.discount;
 
     if (retailerKey === "manual") {
-      const val = parseFloat(calcTotal(usage, manualRate, manualDisc, f));
+      // calcTotal returns "-" or a string number; guard and add numeric values only
+      const valStr = calcTotal(usage, manualRate, manualDisc, f);
+      const val = parseFloat(valStr);
       if (!isNaN(val)) total += val;
     } else {
-      const rate = parseFloat(data[retailerKey]?.[f]) || 0;
-      const disc = parseFloat(data[retailerKey]?.Discount) || 0;
-      const val = parseFloat(calcRetailerTotal(f, rate, disc, usage));
+      // For retailers use calcRetailerTotal which expects retailer rate in cents (like data[Origin][f])
+      const rateFromData = parseFloat(data?.[retailerKey]?.[f]) || 0;
+      const discFromData = parseFloat(data?.[retailerKey]?.Discount) || 0;
+      const valStr = calcRetailerTotal(f, rateFromData, discFromData, usage);
+      const val = parseFloat(valStr);
       if (!isNaN(val)) total += val;
     }
   });
 
-  // ✅ Sum custom rows
+  // Sum custom rows
   customRows.forEach((row) => {
     const u = row.usage;
-    const rate = row[`${retailerKey}Rate`] || row.rate;
-    const disc = row[`${retailerKey}Discount`] || row.discount;
 
-    const fn = retailerKey === "manual" ? calcTotal : calcTotal;
-    let val = parseFloat(fn(u, rate, disc, row.field));
-    if (!isNaN(val)) total += val;
+    if (retailerKey === "manual") {
+      // manual custom row uses row.rate / row.discount with calcTotal
+      const valStr = calcTotal(u, row.rate, row.discount, row.field);
+      const v = parseFloat(valStr);
+      if (!isNaN(v)) total += v;
+    } else {
+      // Map retailer key (Origin, Nectr, Momentum, NBE) to your custom row fields (lowercase prefix)
+      const prefix = retailerKey.toLowerCase(); // "origin", "nectr", "momentum", "nbe"
+      const rate = row[`${prefix}Rate`]; // e.g. row.originRate
+      const disc = row[`${prefix}Discount`];
+
+      // Use calcRetailerTotal for custom-row retailer totals (rate should be cents like data)
+      const valStr = calcRetailerTotal(row.field, rate, disc, u);
+      const v = parseFloat(valStr);
+      if (!isNaN(v)) total += v;
+    }
   });
 
   return total.toFixed(2);
 };
+
 
 
   return (
