@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react"; // ✅ add React import
+import React, { useEffect, useState } from "react";
 
 export default function ComparePage() {
   const [tariffs, setTariffs] = useState([]);
@@ -91,7 +91,7 @@ export default function ComparePage() {
 
   const calcRetailerTotal = (field, rateInDollars, discount, usage) => {
     const usageVal = parseFloat(usage || 0);
-    const rate = parseFloat(rateInDollars || 0) / 100; // convert $→¢
+    const rate = parseFloat(rateInDollars || 0) * 100; // Convert $ → ¢
     const d = parseFloat(discount || 0);
     if (!usageVal || !rate) return "-";
     const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
@@ -101,7 +101,7 @@ export default function ComparePage() {
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r / 100).toFixed(4); // show $→¢ with 4 decimals
+    return (r * 100).toFixed(4); // Convert $ → ¢
   };
 
   return (
@@ -139,7 +139,7 @@ export default function ComparePage() {
               <tr>
                 <th className="p-2 border">Field</th>
                 <th className="p-2 border bg-blue-50">Usage</th>
-                <th className="p-2 border bg-blue-50">Current Rate (¢)</th>
+                <th className="p-2 border bg-blue-50">Manual Rate (¢)</th>
                 <th className="p-2 border bg-blue-50">Discount (%)</th>
                 <th className="p-2 border bg-blue-50">Manual Total</th>
 
@@ -162,12 +162,12 @@ export default function ComparePage() {
             </thead>
 
             <tbody>
+              {/* Main fields */}
               {fields.map((field) => {
                 const originRate = parseFloat(data.Origin?.[field]) || 0;
                 const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
                 const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
                 const nbeRate = parseFloat(data.NBE?.[field]) || 0;
-
                 const allEmpty =
                   originRate === 0 &&
                   nectrRate === 0 &&
@@ -222,34 +222,74 @@ export default function ComparePage() {
                       {calcTotal(usage, manualRate, manualDisc, field)}
                     </td>
 
+                    {/* Origin */}
                     <td className="border p-2">{formatRate(originRate)}</td>
-                    <td className="border p-2 bg-gray-50">{originDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, originRate, originDisc, usage)}
-                    </td>
+                    {originDisc ? (
+                      <>
+                        <td className="border p-2 bg-gray-50">{originDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, originRate, originDisc, usage)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="border p-2 bg-gray-50">-</td>
+                        <td className="border p-2 bg-gray-50">-</td>
+                      </>
+                    )}
 
+                    {/* Nectr */}
                     <td className="border p-2">{formatRate(nectrRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nectrRate, nectrDisc, usage)}
-                    </td>
+                    {nectrDisc ? (
+                      <>
+                        <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, nectrRate, nectrDisc, usage)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="border p-2 bg-gray-50">-</td>
+                        <td className="border p-2 bg-gray-50">-</td>
+                      </>
+                    )}
 
+                    {/* Momentum */}
                     <td className="border p-2">{formatRate(momentumRate)}</td>
-                    <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, momentumRate, momentumDisc, usage)}
-                    </td>
+                    {momentumDisc ? (
+                      <>
+                        <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, momentumRate, momentumDisc, usage)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="border p-2 bg-gray-50">-</td>
+                        <td className="border p-2 bg-gray-50">-</td>
+                      </>
+                    )}
 
+                    {/* NBE */}
                     <td className="border p-2">{formatRate(nbeRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nbeRate, nbeDisc, usage)}
-                    </td>
+                    {nbeDisc ? (
+                      <>
+                        <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, nbeRate, nbeDisc, usage)}
+                        </td>
+                      </>
+                    ) : (
+                      <>
+                        <td className="border p-2 bg-gray-50">-</td>
+                        <td className="border p-2 bg-gray-50">-</td>
+                      </>
+                    )}
                   </tr>
                 );
               })}
 
-              {/* ✅ Safe Custom Rows */}
+              {/* ✅ Custom Rows */}
               {customRows.map((row) => (
                 <tr key={row.field} className="text-center bg-yellow-50">
                   <td className="border p-2 text-left font-medium">{row.field}</td>
@@ -309,156 +349,93 @@ export default function ComparePage() {
                 </tr>
               ))}
             </tbody>
-                            </tbody>
 
             {/* ✅ Final Totals Row */}
             <tfoot>
               <tr className="font-bold bg-blue-100 text-center">
                 <td className="border p-2 text-left">Final Total (¢)</td>
-
-                {/* Manual totals */}
-                <td className="border p-2"></td>
-                <td className="border p-2"></td>
-                <td className="border p-2"></td>
+                {/* Manual Total */}
+                <td colSpan="3"></td>
                 <td className="border p-2 text-blue-700">
-                  {
-                    (() => {
-                      let total = 0;
-                      const rows = [...fields, ...customRows.map((r) => r.field)];
-                      for (const field of rows) {
-                        const usage =
-                          userInputs[field]?.usage ||
-                          customRows.find((r) => r.field === field)?.usage;
-                        const rate =
-                          userInputs[field]?.rate ||
-                          customRows.find((r) => r.field === field)?.rate;
-                        const discount =
-                          userInputs[field]?.discount ||
-                          customRows.find((r) => r.field === field)?.discount;
-                        const val = parseFloat(
-                          calcTotal(usage, rate, discount, field)
-                        );
-                        if (!isNaN(val)) total += val;
-                      }
-                      return total.toFixed(2);
-                    })()
-                  }
+                  {(() => {
+                    let total = 0;
+                    const rows = [...fields, ...customRows.map((r) => r.field)];
+                    for (const field of rows) {
+                      const usage = userInputs[field]?.usage || "";
+                      const rate = userInputs[field]?.rate || "";
+                      const discount = userInputs[field]?.discount || "";
+                      const val = parseFloat(calcTotal(usage, rate, discount, field));
+                      if (!isNaN(val)) total += val;
+                    }
+                    return total.toFixed(2);
+                  })()}
                 </td>
 
-                {/* Origin total */}
-                <td className="border p-2"></td>
-                <td className="border p-2 bg-gray-50"></td>
+                {/* Origin */}
+                <td colSpan="2"></td>
                 <td className="border p-2 bg-gray-50">
-                  {
-                    (() => {
-                      let total = 0;
-                      const rows = [...fields, ...customRows.map((r) => r.field)];
-                      for (const field of rows) {
-                        const usage =
-                          userInputs[field]?.usage ||
-                          customRows.find((r) => r.field === field)?.usage;
-                        const rate =
-                          parseFloat(data.Origin?.[field]) ||
-                          customRows.find((r) => r.field === field)?.originRate;
-                        const discount =
-                          parseFloat(data.Origin?.["Discount"]) ||
-                          customRows.find((r) => r.field === field)?.originDiscount;
-                        const val = parseFloat(
-                          calcRetailerTotal(field, rate, discount, usage)
-                        );
-                        if (!isNaN(val)) total += val;
-                      }
-                      return total.toFixed(2);
-                    })()
-                  }
+                  {(() => {
+                    let total = 0;
+                    for (const field of fields) {
+                      const usage = userInputs[field]?.usage || "";
+                      const rate = data.Origin?.[field];
+                      const discount = data.Origin?.["Discount"] || 0;
+                      const val = parseFloat(calcRetailerTotal(field, rate, discount, usage));
+                      if (!isNaN(val)) total += val;
+                    }
+                    return total.toFixed(2);
+                  })()}
                 </td>
 
-                {/* Nectr total */}
-                <td className="border p-2"></td>
-                <td className="border p-2 bg-gray-50"></td>
+                {/* Nectr */}
+                <td colSpan="2"></td>
                 <td className="border p-2 bg-gray-50">
-                  {
-                    (() => {
-                      let total = 0;
-                      const rows = [...fields, ...customRows.map((r) => r.field)];
-                      for (const field of rows) {
-                        const usage =
-                          userInputs[field]?.usage ||
-                          customRows.find((r) => r.field === field)?.usage;
-                        const rate =
-                          parseFloat(data.Nectr?.[field]) ||
-                          customRows.find((r) => r.field === field)?.nectrRate;
-                        const discount =
-                          parseFloat(data.Nectr?.["Discount"]) ||
-                          customRows.find((r) => r.field === field)?.nectrDiscount;
-                        const val = parseFloat(
-                          calcRetailerTotal(field, rate, discount, usage)
-                        );
-                        if (!isNaN(val)) total += val;
-                      }
-                      return total.toFixed(2);
-                    })()
-                  }
+                  {(() => {
+                    let total = 0;
+                    for (const field of fields) {
+                      const usage = userInputs[field]?.usage || "";
+                      const rate = data.Nectr?.[field];
+                      const discount = data.Nectr?.["Discount"] || 0;
+                      const val = parseFloat(calcRetailerTotal(field, rate, discount, usage));
+                      if (!isNaN(val)) total += val;
+                    }
+                    return total.toFixed(2);
+                  })()}
                 </td>
 
-                {/* Momentum total */}
-                <td className="border p-2"></td>
-                <td className="border p-2 bg-gray-50"></td>
+                {/* Momentum */}
+                <td colSpan="2"></td>
                 <td className="border p-2 bg-gray-50">
-                  {
-                    (() => {
-                      let total = 0;
-                      const rows = [...fields, ...customRows.map((r) => r.field)];
-                      for (const field of rows) {
-                        const usage =
-                          userInputs[field]?.usage ||
-                          customRows.find((r) => r.field === field)?.usage;
-                        const rate =
-                          parseFloat(data.Momentum?.[field]) ||
-                          customRows.find((r) => r.field === field)?.momentumRate;
-                        const discount =
-                          parseFloat(data.Momentum?.["Discount"]) ||
-                          customRows.find((r) => r.field === field)?.momentumDiscount;
-                        const val = parseFloat(
-                          calcRetailerTotal(field, rate, discount, usage)
-                        );
-                        if (!isNaN(val)) total += val;
-                      }
-                      return total.toFixed(2);
-                    })()
-                  }
+                  {(() => {
+                    let total = 0;
+                    for (const field of fields) {
+                      const usage = userInputs[field]?.usage || "";
+                      const rate = data.Momentum?.[field];
+                      const discount = data.Momentum?.["Discount"] || 0;
+                      const val = parseFloat(calcRetailerTotal(field, rate, discount, usage));
+                      if (!isNaN(val)) total += val;
+                    }
+                    return total.toFixed(2);
+                  })()}
                 </td>
 
-                {/* NBE total */}
-                <td className="border p-2"></td>
-                <td className="border p-2 bg-gray-50"></td>
+                {/* NBE */}
+                <td colSpan="2"></td>
                 <td className="border p-2 bg-gray-50">
-                  {
-                    (() => {
-                      let total = 0;
-                      const rows = [...fields, ...customRows.map((r) => r.field)];
-                      for (const field of rows) {
-                        const usage =
-                          userInputs[field]?.usage ||
-                          customRows.find((r) => r.field === field)?.usage;
-                        const rate =
-                          parseFloat(data.NBE?.[field]) ||
-                          customRows.find((r) => r.field === field)?.nbeRate;
-                        const discount =
-                          parseFloat(data.NBE?.["Discount"]) ||
-                          customRows.find((r) => r.field === field)?.nbeDiscount;
-                        const val = parseFloat(
-                          calcRetailerTotal(field, rate, discount, usage)
-                        );
-                        if (!isNaN(val)) total += val;
-                      }
-                      return total.toFixed(2);
-                    })()
-                  }
+                  {(() => {
+                    let total = 0;
+                    for (const field of fields) {
+                      const usage = userInputs[field]?.usage || "";
+                      const rate = data.NBE?.[field];
+                      const discount = data.NBE?.["Discount"] || 0;
+                      const val = parseFloat(calcRetailerTotal(field, rate, discount, usage));
+                      if (!isNaN(val)) total += val;
+                    }
+                    return total.toFixed(2);
+                  })()}
                 </td>
               </tr>
             </tfoot>
-
           </table>
 
           <div className="mt-4 flex justify-end">
