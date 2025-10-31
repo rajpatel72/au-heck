@@ -67,7 +67,7 @@ export default function ComparePage() {
       : 1 - discount / 100;
 
     const total = usage * rate * discountFactor;
-    return total.toFixed(4);
+    return total.toFixed(2);
   };
 
   // --- Retailer Total: Usage × (Rate × 100) × (1 - Discount%)
@@ -83,7 +83,7 @@ export default function ComparePage() {
       : 1 - d / 100;
 
     const total = usage * rate * discountFactor;
-    return total.toFixed(4);
+    return total.toFixed(2);
   };
 
   // Format rates to always show ¢ instead of $
