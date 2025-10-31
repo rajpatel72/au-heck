@@ -36,8 +36,8 @@ export default function ComparePage() {
     "CL3",
     "Capacity Charges",
     "Demand 1",
-    "Demand 2"
-    "Solar",
+    "Demand 2",
+    "Solar"
   ];
 
   const handleInputChange = (field, key, value) => {
