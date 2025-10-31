@@ -11,6 +11,7 @@ export async function GET(req) {
     { name: "Nectr", file: "nectr.csv" },
     { name: "Momentum", file: "momentum.csv" },
     { name: "NBE", file: "nbe.csv" },
+    { name: "1St", file: "1st.csv" },
   ];
 
   const results = {};
