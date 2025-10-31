@@ -90,7 +90,7 @@ export default function ComparePage() {
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r * 100).toFixed(2); // convert to cents
+    return (r / 100).toFixed(2); // convert to cents
   };
 
   return (
