@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react"; // ✅ add React import
 
 export default function ComparePage() {
   const [tariffs, setTariffs] = useState([]);
@@ -12,18 +12,24 @@ export default function ComparePage() {
   useEffect(() => {
     fetch("/api/tariffs")
       .then((res) => res.json())
-      .then((list) => setTariffs(list.sort()));
+      .then((list) => setTariffs(list.sort()))
+      .catch((err) => console.error("Failed to load tariffs:", err));
   }, []);
 
   const handleCompare = async () => {
     if (!selected) return;
     setLoading(true);
-    const res = await fetch(`/api/compare?tariff=${encodeURIComponent(selected)}`);
-    const result = await res.json();
-    setData(result);
-    setUserInputs({});
-    setCustomRows([]); // reset custom rows when new tariff is loaded
-    setLoading(false);
+    try {
+      const res = await fetch(`/api/compare?tariff=${encodeURIComponent(selected)}`);
+      const result = await res.json();
+      setData(result);
+      setUserInputs({});
+      setCustomRows([]);
+    } catch (err) {
+      console.error("Compare error:", err);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const fields = [
@@ -46,9 +52,7 @@ export default function ComparePage() {
   const handleInputChange = (rowType, field, key, value) => {
     if (rowType === "custom") {
       setCustomRows((prev) =>
-        prev.map((r) =>
-          r.field === field ? { ...r, [key]: value } : r
-        )
+        prev.map((r) => (r.field === field ? { ...r, [key]: value } : r))
       );
     } else {
       setUserInputs((prev) => ({
@@ -87,7 +91,7 @@ export default function ComparePage() {
 
   const calcRetailerTotal = (field, rateInDollars, discount, usage) => {
     const usageVal = parseFloat(usage || 0);
-    const rate = parseFloat(rateInDollars || 0) * 100; // convert $→¢
+    const rate = parseFloat(rateInDollars || 0) / 100; // convert $→¢
     const d = parseFloat(discount || 0);
     if (!usageVal || !rate) return "-";
     const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
@@ -97,7 +101,7 @@ export default function ComparePage() {
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r * 100).toFixed(4); // show $→¢ with 4 decimals
+    return (r / 100).toFixed(4); // show $→¢ with 4 decimals
   };
 
   return (
@@ -158,7 +162,6 @@ export default function ComparePage() {
             </thead>
 
             <tbody>
-              {/* Default Rows */}
               {fields.map((field) => {
                 const originRate = parseFloat(data.Origin?.[field]) || 0;
                 const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
@@ -184,8 +187,6 @@ export default function ComparePage() {
                 return (
                   <tr key={field} className="text-center hover:bg-gray-50">
                     <td className="border p-2 text-left">{field}</td>
-
-                    {/* Manual Inputs */}
                     <td className="border p-2">
                       <input
                         type="number"
@@ -194,10 +195,8 @@ export default function ComparePage() {
                           handleInputChange("default", field, "usage", e.target.value)
                         }
                         className="w-20 border rounded px-2 py-1 text-sm"
-                        placeholder="kWh"
                       />
                     </td>
-
                     <td className="border p-2">
                       <input
                         type="number"
@@ -206,10 +205,8 @@ export default function ComparePage() {
                           handleInputChange("default", field, "rate", e.target.value)
                         }
                         className="w-24 border rounded px-2 py-1 text-sm"
-                        placeholder="¢"
                       />
                     </td>
-
                     <td className="border p-2">
                       <input
                         type="number"
@@ -218,16 +215,13 @@ export default function ComparePage() {
                           handleInputChange("default", field, "discount", e.target.value)
                         }
                         className="w-20 border rounded px-2 py-1 text-sm"
-                        placeholder="%"
                         disabled={noDiscountFields.includes(field)}
                       />
                     </td>
-
                     <td className="border p-2 font-semibold text-blue-700">
                       {calcTotal(usage, manualRate, manualDisc, field)}
                     </td>
 
-                    {/* Retailers */}
                     <td className="border p-2">{formatRate(originRate)}</td>
                     <td className="border p-2 bg-gray-50">{originDisc}%</td>
                     <td className="border p-2 bg-gray-50">
@@ -255,45 +249,26 @@ export default function ComparePage() {
                 );
               })}
 
-              {/* Custom Rows */}
+              {/* ✅ Safe Custom Rows */}
               {customRows.map((row) => (
                 <tr key={row.field} className="text-center bg-yellow-50">
                   <td className="border p-2 text-left font-medium">{row.field}</td>
-                  <td className="border p-2">
-                    <input
-                      type="number"
-                      value={row.usage}
-                      onChange={(e) =>
-                        handleInputChange("custom", row.field, "usage", e.target.value)
-                      }
-                      className="w-20 border rounded px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="border p-2">
-                    <input
-                      type="number"
-                      value={row.rate}
-                      onChange={(e) =>
-                        handleInputChange("custom", row.field, "rate", e.target.value)
-                      }
-                      className="w-24 border rounded px-2 py-1 text-sm"
-                    />
-                  </td>
-                  <td className="border p-2">
-                    <input
-                      type="number"
-                      value={row.discount}
-                      onChange={(e) =>
-                        handleInputChange("custom", row.field, "discount", e.target.value)
-                      }
-                      className="w-20 border rounded px-2 py-1 text-sm"
-                    />
-                  </td>
+                  {["usage", "rate", "discount"].map((key) => (
+                    <td key={key} className="border p-2">
+                      <input
+                        type="number"
+                        value={row[key]}
+                        onChange={(e) =>
+                          handleInputChange("custom", row.field, key, e.target.value)
+                        }
+                        className="w-20 border rounded px-2 py-1 text-sm"
+                      />
+                    </td>
+                  ))}
                   <td className="border p-2 font-semibold text-blue-700">
                     {calcTotal(row.usage, row.rate, row.discount, row.field)}
                   </td>
 
-                  {/* Editable Retailer Columns */}
                   {["origin", "nectr", "momentum", "nbe"].map((ret) => (
                     <React.Fragment key={ret}>
                       <td className="border p-2">
@@ -311,7 +286,12 @@ export default function ComparePage() {
                           type="number"
                           value={row[`${ret}Discount`]}
                           onChange={(e) =>
-                            handleInputChange("custom", row.field, `${ret}Discount`, e.target.value)
+                            handleInputChange(
+                              "custom",
+                              row.field,
+                              `${ret}Discount`,
+                              e.target.value
+                            )
                           }
                           className="w-20 border rounded px-2 py-1 text-sm"
                         />
