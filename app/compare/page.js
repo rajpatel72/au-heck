@@ -6,7 +6,7 @@ export default function ComparePage() {
   const [selected, setSelected] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [userInputs, setUserInputs] = useState({}); // usage + rate per field
+  const [userInputs, setUserInputs] = useState({}); // usage + rate + discount per field
 
   // Fetch tariff list once
   useEffect(() => {
@@ -40,6 +40,7 @@ export default function ComparePage() {
     "Solar"
   ];
 
+  // Handle user input changes
   const handleInputChange = (field, key, value) => {
     setUserInputs((prev) => ({
       ...prev,
@@ -50,18 +51,24 @@ export default function ComparePage() {
     }));
   };
 
+  // --- Manual Total: Usage × Rate × (1 - Discount%)
   const calcManualTotal = (field) => {
     const usage = parseFloat(userInputs[field]?.usage || 0);
     const rate = parseFloat(userInputs[field]?.rate || 0);
+    const discount = parseFloat(userInputs[field]?.discount || 0);
     if (!usage || !rate) return "-";
-    return (usage * rate).toFixed(2);
+    const total = usage * rate * (1 - discount / 100);
+    return total.toFixed(2);
   };
 
-  const calcRetailerTotal = (field, retailerRate) => {
+  // --- Retailer Total: Usage × Rate × (1 - Discount%)
+  const calcRetailerTotal = (field, rate, discount) => {
     const usage = parseFloat(userInputs[field]?.usage || 0);
-    const rate = parseFloat(retailerRate || 0);
-    if (!usage || !rate) return "-";
-    return (usage * rate).toFixed(2);
+    const r = parseFloat(rate || 0);
+    const d = parseFloat(discount || 0);
+    if (!usage || !r) return "-";
+    const total = usage * r * (1 - d / 100);
+    return total.toFixed(2);
   };
 
   return (
@@ -99,19 +106,27 @@ export default function ComparePage() {
               <tr>
                 <th className="p-2 border">Field</th>
 
-                {/* manual input columns */}
+                {/* Manual input columns */}
                 <th className="p-2 border bg-blue-50">Usage</th>
                 <th className="p-2 border bg-blue-50">Current Rate</th>
+                <th className="p-2 border bg-blue-50">Discount (%)</th>
                 <th className="p-2 border bg-blue-50">Manual Total</th>
 
-                {/* retailer columns */}
+                {/* Retailer columns */}
                 <th className="p-2 border">Origin</th>
+                <th className="p-2 border bg-gray-50">Origin Discount (%)</th>
                 <th className="p-2 border bg-gray-50">Origin Total</th>
+
                 <th className="p-2 border">Nectr</th>
+                <th className="p-2 border bg-gray-50">Nectr Discount (%)</th>
                 <th className="p-2 border bg-gray-50">Nectr Total</th>
+
                 <th className="p-2 border">Momentum</th>
+                <th className="p-2 border bg-gray-50">Momentum Discount (%)</th>
                 <th className="p-2 border bg-gray-50">Momentum Total</th>
+
                 <th className="p-2 border">NBE</th>
+                <th className="p-2 border bg-gray-50">NBE Discount (%)</th>
                 <th className="p-2 border bg-gray-50">NBE Total</th>
               </tr>
             </thead>
@@ -123,11 +138,16 @@ export default function ComparePage() {
                 const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
                 const nbeRate = parseFloat(data.NBE?.[field]) || 0;
 
+                const originDisc = parseFloat(data.Origin?.["Discount"]) || 0;
+                const nectrDisc = parseFloat(data.Nectr?.["Discount"]) || 0;
+                const momentumDisc = parseFloat(data.Momentum?.["Discount"]) || 0;
+                const nbeDisc = parseFloat(data.NBE?.["Discount"]) || 0;
+
                 return (
                   <tr key={field} className="text-center hover:bg-gray-50">
                     <td className="border p-2 font-medium text-left">{field}</td>
 
-                    {/* usage input */}
+                    {/* manual inputs */}
                     <td className="border p-2">
                       <input
                         type="number"
@@ -142,7 +162,6 @@ export default function ComparePage() {
                       />
                     </td>
 
-                    {/* manual rate input */}
                     <td className="border p-2">
                       <input
                         type="number"
@@ -157,30 +176,47 @@ export default function ComparePage() {
                       />
                     </td>
 
-                    {/* manual total */}
+                    <td className="border p-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={userInputs[field]?.discount || ""}
+                        onChange={(e) =>
+                          handleInputChange(field, "discount", e.target.value)
+                        }
+                        className="w-20 border rounded px-2 py-1 text-sm"
+                        placeholder="%"
+                      />
+                    </td>
+
                     <td className="border p-2 font-semibold text-blue-700">
                       {calcManualTotal(field)}
                     </td>
 
-                    {/* retailers + their totals */}
+                    {/* retailer columns */}
                     <td className="border p-2">{data.Origin?.[field] || "-"}</td>
+                    <td className="border p-2 bg-gray-50">{originDisc}%</td>
                     <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, originRate)}
+                      {calcRetailerTotal(field, originRate, originDisc)}
                     </td>
 
                     <td className="border p-2">{data.Nectr?.[field] || "-"}</td>
+                    <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
                     <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nectrRate)}
+                      {calcRetailerTotal(field, nectrRate, nectrDisc)}
                     </td>
 
                     <td className="border p-2">{data.Momentum?.[field] || "-"}</td>
+                    <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
                     <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, momentumRate)}
+                      {calcRetailerTotal(field, momentumRate, momentumDisc)}
                     </td>
 
                     <td className="border p-2">{data.NBE?.[field] || "-"}</td>
+                    <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
                     <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nbeRate)}
+                      {calcRetailerTotal(field, nbeRate, nbeDisc)}
                     </td>
                   </tr>
                 );
