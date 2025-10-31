@@ -309,6 +309,156 @@ export default function ComparePage() {
                 </tr>
               ))}
             </tbody>
+                            </tbody>
+
+            {/* ✅ Final Totals Row */}
+            <tfoot>
+              <tr className="font-bold bg-blue-100 text-center">
+                <td className="border p-2 text-left">Final Total (¢)</td>
+
+                {/* Manual totals */}
+                <td className="border p-2"></td>
+                <td className="border p-2"></td>
+                <td className="border p-2"></td>
+                <td className="border p-2 text-blue-700">
+                  {
+                    (() => {
+                      let total = 0;
+                      const rows = [...fields, ...customRows.map((r) => r.field)];
+                      for (const field of rows) {
+                        const usage =
+                          userInputs[field]?.usage ||
+                          customRows.find((r) => r.field === field)?.usage;
+                        const rate =
+                          userInputs[field]?.rate ||
+                          customRows.find((r) => r.field === field)?.rate;
+                        const discount =
+                          userInputs[field]?.discount ||
+                          customRows.find((r) => r.field === field)?.discount;
+                        const val = parseFloat(
+                          calcTotal(usage, rate, discount, field)
+                        );
+                        if (!isNaN(val)) total += val;
+                      }
+                      return total.toFixed(2);
+                    })()
+                  }
+                </td>
+
+                {/* Origin total */}
+                <td className="border p-2"></td>
+                <td className="border p-2 bg-gray-50"></td>
+                <td className="border p-2 bg-gray-50">
+                  {
+                    (() => {
+                      let total = 0;
+                      const rows = [...fields, ...customRows.map((r) => r.field)];
+                      for (const field of rows) {
+                        const usage =
+                          userInputs[field]?.usage ||
+                          customRows.find((r) => r.field === field)?.usage;
+                        const rate =
+                          parseFloat(data.Origin?.[field]) ||
+                          customRows.find((r) => r.field === field)?.originRate;
+                        const discount =
+                          parseFloat(data.Origin?.["Discount"]) ||
+                          customRows.find((r) => r.field === field)?.originDiscount;
+                        const val = parseFloat(
+                          calcRetailerTotal(field, rate, discount, usage)
+                        );
+                        if (!isNaN(val)) total += val;
+                      }
+                      return total.toFixed(2);
+                    })()
+                  }
+                </td>
+
+                {/* Nectr total */}
+                <td className="border p-2"></td>
+                <td className="border p-2 bg-gray-50"></td>
+                <td className="border p-2 bg-gray-50">
+                  {
+                    (() => {
+                      let total = 0;
+                      const rows = [...fields, ...customRows.map((r) => r.field)];
+                      for (const field of rows) {
+                        const usage =
+                          userInputs[field]?.usage ||
+                          customRows.find((r) => r.field === field)?.usage;
+                        const rate =
+                          parseFloat(data.Nectr?.[field]) ||
+                          customRows.find((r) => r.field === field)?.nectrRate;
+                        const discount =
+                          parseFloat(data.Nectr?.["Discount"]) ||
+                          customRows.find((r) => r.field === field)?.nectrDiscount;
+                        const val = parseFloat(
+                          calcRetailerTotal(field, rate, discount, usage)
+                        );
+                        if (!isNaN(val)) total += val;
+                      }
+                      return total.toFixed(2);
+                    })()
+                  }
+                </td>
+
+                {/* Momentum total */}
+                <td className="border p-2"></td>
+                <td className="border p-2 bg-gray-50"></td>
+                <td className="border p-2 bg-gray-50">
+                  {
+                    (() => {
+                      let total = 0;
+                      const rows = [...fields, ...customRows.map((r) => r.field)];
+                      for (const field of rows) {
+                        const usage =
+                          userInputs[field]?.usage ||
+                          customRows.find((r) => r.field === field)?.usage;
+                        const rate =
+                          parseFloat(data.Momentum?.[field]) ||
+                          customRows.find((r) => r.field === field)?.momentumRate;
+                        const discount =
+                          parseFloat(data.Momentum?.["Discount"]) ||
+                          customRows.find((r) => r.field === field)?.momentumDiscount;
+                        const val = parseFloat(
+                          calcRetailerTotal(field, rate, discount, usage)
+                        );
+                        if (!isNaN(val)) total += val;
+                      }
+                      return total.toFixed(2);
+                    })()
+                  }
+                </td>
+
+                {/* NBE total */}
+                <td className="border p-2"></td>
+                <td className="border p-2 bg-gray-50"></td>
+                <td className="border p-2 bg-gray-50">
+                  {
+                    (() => {
+                      let total = 0;
+                      const rows = [...fields, ...customRows.map((r) => r.field)];
+                      for (const field of rows) {
+                        const usage =
+                          userInputs[field]?.usage ||
+                          customRows.find((r) => r.field === field)?.usage;
+                        const rate =
+                          parseFloat(data.NBE?.[field]) ||
+                          customRows.find((r) => r.field === field)?.nbeRate;
+                        const discount =
+                          parseFloat(data.NBE?.["Discount"]) ||
+                          customRows.find((r) => r.field === field)?.nbeDiscount;
+                        const val = parseFloat(
+                          calcRetailerTotal(field, rate, discount, usage)
+                        );
+                        if (!isNaN(val)) total += val;
+                      }
+                      return total.toFixed(2);
+                    })()
+                  }
+                </td>
+              </tr>
+            </tfoot>
+
           </table>
 
           <div className="mt-4 flex justify-end">
