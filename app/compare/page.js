@@ -104,6 +104,42 @@ export default function ComparePage() {
     return (r / 100).toFixed(4); // show $→¢ with 4 decimals
   };
 
+  // ✅ Sum totals for a column (manual + retailers)
+const totalForRetailer = (retailerKey) => {
+  let total = 0;
+
+  // ✅ Sum default rows
+  fields.forEach((f) => {
+    const usage = userInputs[f]?.usage;
+    const manualRate = userInputs[f]?.rate;
+    const manualDisc = userInputs[f]?.discount;
+
+    if (retailerKey === "manual") {
+      const val = parseFloat(calcTotal(usage, manualRate, manualDisc, f));
+      if (!isNaN(val)) total += val;
+    } else {
+      const rate = parseFloat(data[retailerKey]?.[f]) || 0;
+      const disc = parseFloat(data[retailerKey]?.Discount) || 0;
+      const val = parseFloat(calcRetailerTotal(f, rate, disc, usage));
+      if (!isNaN(val)) total += val;
+    }
+  });
+
+  // ✅ Sum custom rows
+  customRows.forEach((row) => {
+    const u = row.usage;
+    const rate = row[`${retailerKey}Rate`] || row.rate;
+    const disc = row[`${retailerKey}Discount`] || row.discount;
+
+    const fn = retailerKey === "manual" ? calcTotal : calcTotal;
+    let val = parseFloat(fn(u, rate, disc, row.field));
+    if (!isNaN(val)) total += val;
+  });
+
+  return total.toFixed(2);
+};
+
+
   return (
     <main className="min-h-screen p-8">
       <h1 className="text-3xl font-bold text-center mb-6">
@@ -308,6 +344,31 @@ export default function ComparePage() {
                   ))}
                 </tr>
               ))}
+                <tr className="font-bold bg-blue-100 text-center">
+  <td className="border p-2 text-left">TOTAL</td>
+
+  {/* Manual usage/rate/discount cells left blank */}
+  <td className="border p-2"></td>
+  <td className="border p-2"></td>
+  <td className="border p-2"></td>
+
+  {/* ✅ Manual Total */}
+  <td className="border p-2 text-blue-700">{totalForRetailer("manual")}</td>
+
+  {/* ✅ Retailer Totals */}
+  <td className="border p-2"></td><td className="border p-2"></td>
+  <td className="border p-2 bg-gray-50">{totalForRetailer("Origin")}</td>
+
+  <td className="border p-2"></td><td className="border p-2"></td>
+  <td className="border p-2 bg-gray-50">{totalForRetailer("Nectr")}</td>
+
+  <td className="border p-2"></td><td className="border p-2"></td>
+  <td className="border p-2 bg-gray-50">{totalForRetailer("Momentum")}</td>
+
+  <td className="border p-2"></td><td className="border p-2"></td>
+  <td className="border p-2 bg-gray-50">{totalForRetailer("NBE")}</td>
+</tr>
+
             </tbody>
           </table>
 
