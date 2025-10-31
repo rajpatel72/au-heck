@@ -1,5 +1,5 @@
 "use client";
-import React, { useEffect, useState } from "react"; // ✅ add React import
+import React, { useEffect, useState } from "react";
 
 export default function ComparePage() {
   const [tariffs, setTariffs] = useState([]);
@@ -91,7 +91,9 @@ export default function ComparePage() {
 
   const calcRetailerTotal = (field, rateInDollars, discount, usage) => {
     const usageVal = parseFloat(usage || 0);
-    const rate = parseFloat(rateInDollars || 0) / 100; // convert $→¢
+    // rateInDollars for network data and custom retailer inputs is in cents (like your data),
+    // calcRetailerTotal converts cents -> dollars by dividing by 100.
+    const rate = parseFloat(rateInDollars || 0) / 100;
     const d = parseFloat(discount || 0);
     if (!usageVal || !rate) return "-";
     const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
@@ -101,73 +103,74 @@ export default function ComparePage() {
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r / 100).toFixed(4); // show $→¢ with 4 decimals
+    return (r / 100).toFixed(4); // show cents -> dollars with 4 decimals
   };
 
-  // Sum totals for a column (manual + retailers) — corrected
-const totalForRetailer = (retailerKey) => {
-  let total = 0;
+  // --- New: retailers list + discount presence map ---
+  const retailers = ["Origin", "Nectr", "Momentum", "NBE"];
+  // hasDiscountFor: { Origin: true/false, ... }
+  const hasDiscountFor = {};
+  if (data) {
+    retailers.forEach((r) => {
+      // explicit check for undefined/null - if Discount not provided, treat as no-discount
+      hasDiscountFor[r] = typeof data?.[r]?.Discount !== "undefined" && data?.[r]?.Discount !== null;
+    });
+  }
 
-  // Sum default rows (fields from network data)
-  fields.forEach((f) => {
-    const usage = userInputs[f]?.usage;
-    const manualRate = userInputs[f]?.rate;
-    const manualDisc = userInputs[f]?.discount;
+  // Sum totals for a column (manual + retailers) — corrected and respects missing discount columns
+  const totalForRetailer = (retailerKey) => {
+    let total = 0;
 
-    if (retailerKey === "manual") {
-      // calcTotal returns "-" or a string number; guard and add numeric values only
-      const valStr = calcTotal(usage, manualRate, manualDisc, f);
-      const val = parseFloat(valStr);
-      if (!isNaN(val)) total += val;
-    } else {
-      // For retailers use calcRetailerTotal which expects retailer rate in cents (like data[Origin][f])
-      const rateFromData = parseFloat(data?.[retailerKey]?.[f]) || 0;
-      const discFromData = parseFloat(data?.[retailerKey]?.Discount) || 0;
-      const valStr = calcRetailerTotal(f, rateFromData, discFromData, usage);
-      const val = parseFloat(valStr);
-      if (!isNaN(val)) total += val;
-    }
-  });
+    // Sum default rows (fields from network data)
+    fields.forEach((f) => {
+      const usage = userInputs[f]?.usage;
+      const manualRate = userInputs[f]?.rate;
+      const manualDisc = userInputs[f]?.discount;
 
-  // Sum custom rows
-  customRows.forEach((row) => {
-    const u = row.usage;
+      if (retailerKey === "manual") {
+        const valStr = calcTotal(usage, manualRate, manualDisc, f);
+        const val = parseFloat(valStr);
+        if (!isNaN(val)) total += val;
+      } else {
+        const rateFromData = parseFloat(data?.[retailerKey]?.[f]) || 0;
+        // if retailer doesn't have a Discount field, treat discount as 0
+        const discFromData = hasDiscountFor[retailerKey] ? parseFloat(data?.[retailerKey]?.Discount) || 0 : 0;
+        const valStr = calcRetailerTotal(f, rateFromData, discFromData, usage);
+        const val = parseFloat(valStr);
+        if (!isNaN(val)) total += val;
+      }
+    });
 
-    if (retailerKey === "manual") {
-      // manual custom row uses row.rate / row.discount with calcTotal
-      const valStr = calcTotal(u, row.rate, row.discount, row.field);
-      const v = parseFloat(valStr);
-      if (!isNaN(v)) total += v;
-    } else {
-      // Map retailer key (Origin, Nectr, Momentum, NBE) to your custom row fields (lowercase prefix)
-      const prefix = retailerKey.toLowerCase(); // "origin", "nectr", "momentum", "nbe"
-      const rate = row[`${prefix}Rate`]; // e.g. row.originRate
-      const disc = row[`${prefix}Discount`];
+    // Sum custom rows
+    customRows.forEach((row) => {
+      const u = row.usage;
 
-      // Use calcRetailerTotal for custom-row retailer totals (rate should be cents like data)
-      const valStr = calcRetailerTotal(row.field, rate, disc, u);
-      const v = parseFloat(valStr);
-      if (!isNaN(v)) total += v;
-    }
-  });
+      if (retailerKey === "manual") {
+        const valStr = calcTotal(u, row.rate, row.discount, row.field);
+        const v = parseFloat(valStr);
+        if (!isNaN(v)) total += v;
+      } else {
+        const prefix = retailerKey.toLowerCase(); // "origin", "nectr", ...
+        const rate = row[`${prefix}Rate`];
+        // if the retailer doesn't have discount configured globally (hasDiscountFor false)
+        // we also hide the custom discount input — but here we treat missing as 0
+        const disc = hasDiscountFor[retailerKey] ? row[`${prefix}Discount`] : 0;
 
-  return total.toFixed(2);
-};
+        const valStr = calcRetailerTotal(row.field, rate, disc, u);
+        const v = parseFloat(valStr);
+        if (!isNaN(v)) total += v;
+      }
+    });
 
-
+    return total.toFixed(2);
+  };
 
   return (
     <main className="min-h-screen p-8">
-      <h1 className="text-3xl font-bold text-center mb-6">
-        ⚡ Electricity Rate Comparison
-      </h1>
+      <h1 className="text-3xl font-bold text-center mb-6">⚡ Electricity Rate Comparison</h1>
 
       <div className="flex flex-col items-center gap-4 mb-8">
-        <select
-          className="border px-4 py-2 rounded w-72"
-          value={selected}
-          onChange={(e) => setSelected(e.target.value)}
-        >
+        <select className="border px-4 py-2 rounded w-72" value={selected} onChange={(e) => setSelected(e.target.value)}>
           <option value="">Select Network Tariff</option>
           {tariffs.map((t) => (
             <option key={t} value={t}>
@@ -176,10 +179,7 @@ const totalForRetailer = (retailerKey) => {
           ))}
         </select>
 
-        <button
-          onClick={handleCompare}
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700"
-        >
+        <button onClick={handleCompare} className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700">
           {loading ? "Loading..." : "Compare Rates"}
         </button>
       </div>
@@ -195,21 +195,14 @@ const totalForRetailer = (retailerKey) => {
                 <th className="p-2 border bg-blue-50">Discount (%)</th>
                 <th className="p-2 border bg-blue-50">Manual Total</th>
 
-                <th className="p-2 border">Origin (¢)</th>
-                <th className="p-2 border bg-gray-50">Origin Discount (%)</th>
-                <th className="p-2 border bg-gray-50">Origin Total</th>
-
-                <th className="p-2 border">Nectr (¢)</th>
-                <th className="p-2 border bg-gray-50">Nectr Discount (%)</th>
-                <th className="p-2 border bg-gray-50">Nectr Total</th>
-
-                <th className="p-2 border">Momentum (¢)</th>
-                <th className="p-2 border bg-gray-50">Momentum Discount (%)</th>
-                <th className="p-2 border bg-gray-50">Momentum Total</th>
-
-                <th className="p-2 border">NBE (¢)</th>
-                <th className="p-2 border bg-gray-50">NBE Discount (%)</th>
-                <th className="p-2 border bg-gray-50">NBE Total</th>
+                {/* dynamic retailer headers: rate, optional discount, total */}
+                {retailers.map((ret) => (
+                  <React.Fragment key={ret}>
+                    <th className="p-2 border">{ret} (¢)</th>
+                    {hasDiscountFor[ret] && <th className="p-2 border bg-gray-50">{ret} Discount (%)</th>}
+                    <th className="p-2 border bg-gray-50">{ret} Total</th>
+                  </React.Fragment>
+                ))}
               </tr>
             </thead>
 
@@ -220,11 +213,7 @@ const totalForRetailer = (retailerKey) => {
                 const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
                 const nbeRate = parseFloat(data.NBE?.[field]) || 0;
 
-                const allEmpty =
-                  originRate === 0 &&
-                  nectrRate === 0 &&
-                  momentumRate === 0 &&
-                  nbeRate === 0;
+                const allEmpty = originRate === 0 && nectrRate === 0 && momentumRate === 0 && nbeRate === 0;
                 if (allEmpty) return null;
 
                 const originDisc = parseFloat(data.Origin?.["Discount"]) || 0;
@@ -239,156 +228,137 @@ const totalForRetailer = (retailerKey) => {
                 return (
                   <tr key={field} className="text-center hover:bg-gray-50">
                     <td className="border p-2 text-left">{field}</td>
+
                     <td className="border p-2">
                       <input
                         type="number"
                         value={usage}
-                        onChange={(e) =>
-                          handleInputChange("default", field, "usage", e.target.value)
-                        }
+                        onChange={(e) => handleInputChange("default", field, "usage", e.target.value)}
                         className="w-20 border rounded px-2 py-1 text-sm"
                       />
                     </td>
+
                     <td className="border p-2">
                       <input
                         type="number"
                         value={manualRate}
-                        onChange={(e) =>
-                          handleInputChange("default", field, "rate", e.target.value)
-                        }
+                        onChange={(e) => handleInputChange("default", field, "rate", e.target.value)}
                         className="w-24 border rounded px-2 py-1 text-sm"
                       />
                     </td>
+
                     <td className="border p-2">
                       <input
                         type="number"
                         value={manualDisc}
-                        onChange={(e) =>
-                          handleInputChange("default", field, "discount", e.target.value)
-                        }
+                        onChange={(e) => handleInputChange("default", field, "discount", e.target.value)}
                         className="w-20 border rounded px-2 py-1 text-sm"
                         disabled={noDiscountFields.includes(field)}
                       />
                     </td>
-                    <td className="border p-2 font-semibold text-blue-700">
-                      {calcTotal(usage, manualRate, manualDisc, field)}
-                    </td>
 
+                    <td className="border p-2 font-semibold text-blue-700">{calcTotal(usage, manualRate, manualDisc, field)}</td>
+
+                    {/* Retailer cells rendered according to hasDiscountFor */}
+                    {/* Origin */}
                     <td className="border p-2">{formatRate(originRate)}</td>
-                    <td className="border p-2 bg-gray-50">{originDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, originRate, originDisc, usage)}
-                    </td>
+                    {hasDiscountFor["Origin"] && <td className="border p-2 bg-gray-50">{originDisc}%</td>}
+                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, originRate, originDisc, usage)}</td>
 
+                    {/* Nectr */}
                     <td className="border p-2">{formatRate(nectrRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nectrRate, nectrDisc, usage)}
-                    </td>
+                    {hasDiscountFor["Nectr"] && <td className="border p-2 bg-gray-50">{nectrDisc}%</td>}
+                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, nectrRate, nectrDisc, usage)}</td>
 
+                    {/* Momentum */}
                     <td className="border p-2">{formatRate(momentumRate)}</td>
-                    <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, momentumRate, momentumDisc, usage)}
-                    </td>
+                    {hasDiscountFor["Momentum"] && <td className="border p-2 bg-gray-50">{momentumDisc}%</td>}
+                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, momentumRate, momentumDisc, usage)}</td>
 
+                    {/* NBE */}
                     <td className="border p-2">{formatRate(nbeRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nbeRate, nbeDisc, usage)}
-                    </td>
+                    {hasDiscountFor["NBE"] && <td className="border p-2 bg-gray-50">{nbeDisc}%</td>}
+                    <td className="border p-2 bg-gray-50">{calcRetailerTotal(field, nbeRate, nbeDisc, usage)}</td>
                   </tr>
                 );
               })}
 
-              {/* ✅ Safe Custom Rows */}
+              {/* Custom Rows */}
               {customRows.map((row) => (
                 <tr key={row.field} className="text-center bg-yellow-50">
                   <td className="border p-2 text-left font-medium">{row.field}</td>
+
+                  {/* usage, manual rate, manual discount */}
                   {["usage", "rate", "discount"].map((key) => (
                     <td key={key} className="border p-2">
                       <input
                         type="number"
                         value={row[key]}
-                        onChange={(e) =>
-                          handleInputChange("custom", row.field, key, e.target.value)
-                        }
+                        onChange={(e) => handleInputChange("custom", row.field, key, e.target.value)}
                         className="w-20 border rounded px-2 py-1 text-sm"
                       />
                     </td>
                   ))}
-                  <td className="border p-2 font-semibold text-blue-700">
-                    {calcTotal(row.usage, row.rate, row.discount, row.field)}
-                  </td>
 
-                  {["origin", "nectr", "momentum", "nbe"].map((ret) => (
-                    <React.Fragment key={ret}>
-                      <td className="border p-2">
-                        <input
-                          type="number"
-                          value={row[`${ret}Rate`]}
-                          onChange={(e) =>
-                            handleInputChange("custom", row.field, `${ret}Rate`, e.target.value)
-                          }
-                          className="w-24 border rounded px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="border p-2 bg-gray-50">
-                        <input
-                          type="number"
-                          value={row[`${ret}Discount`]}
-                          onChange={(e) =>
-                            handleInputChange(
-                              "custom",
-                              row.field,
-                              `${ret}Discount`,
-                              e.target.value
-                            )
-                          }
-                          className="w-20 border rounded px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="border p-2 bg-gray-50">
-                        {calcTotal(
-                          row.usage,
-                          row[`${ret}Rate`],
-                          row[`${ret}Discount`],
-                          row.field
+                  <td className="border p-2 font-semibold text-blue-700">{calcTotal(row.usage, row.rate, row.discount, row.field)}</td>
+
+                  {/* For each retailer: rate input, optional discount input, total cell */}
+                  {retailers.map((ret) => {
+                    const prefix = ret.toLowerCase(); // origin, nectr, ...
+                    return (
+                      <React.Fragment key={ret}>
+                        <td className="border p-2">
+                          <input
+                            type="number"
+                            value={row[`${prefix}Rate`]}
+                            onChange={(e) => handleInputChange("custom", row.field, `${prefix}Rate`, e.target.value)}
+                            className="w-24 border rounded px-2 py-1 text-sm"
+                          />
+                        </td>
+
+                        {/* only show discount input if retailer has discount configured */}
+                        {hasDiscountFor[ret] && (
+                          <td className="border p-2 bg-gray-50">
+                            <input
+                              type="number"
+                              value={row[`${prefix}Discount`]}
+                              onChange={(e) => handleInputChange("custom", row.field, `${prefix}Discount`, e.target.value)}
+                              className="w-20 border rounded px-2 py-1 text-sm"
+                            />
+                          </td>
                         )}
-                      </td>
-                    </React.Fragment>
-                  ))}
+
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(row.field, row[`${prefix}Rate`], hasDiscountFor[ret] ? row[`${prefix}Discount`] : 0, row.usage)}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
                 </tr>
               ))}
-                <tr className="font-bold bg-blue-100 text-center">
-  <td className="border p-2 text-left">TOTAL</td>
 
-  {/* Manual usage/rate/discount cells left blank */}
-  <td className="border p-2"></td>
-  <td className="border p-2"></td>
-  <td className="border p-2"></td>
+              {/* TOTAL row - respects whether each retailer has a discount column (we still show totals regardless) */}
+              <tr className="font-bold bg-blue-100 text-center">
+                <td className="border p-2 text-left">TOTAL</td>
+                <td className="border p-2"></td>
+                <td className="border p-2"></td>
+                <td className="border p-2"></td>
 
-  {/* ✅ Manual Total */}
-  <td className="border p-2 text-blue-700">{totalForRetailer("manual")}</td>
+                <td className="border p-2 text-blue-700">{totalForRetailer("manual")}</td>
 
-  {/* ✅ Retailer Totals */}
-  <td className="border p-2"></td><td className="border p-2"></td>
-  <td className="border p-2 bg-gray-50">{totalForRetailer("Origin")}</td>
-
-  <td className="border p-2"></td><td className="border p-2"></td>
-  <td className="border p-2 bg-gray-50">{totalForRetailer("Nectr")}</td>
-
-  <td className="border p-2"></td><td className="border p-2"></td>
-  <td className="border p-2 bg-gray-50">{totalForRetailer("Momentum")}</td>
-
-  <td className="border p-2"></td><td className="border p-2"></td>
-  <td className="border p-2 bg-gray-50">{totalForRetailer("NBE")}</td>
-</tr>
-
+                {/* render totals for each retailer with placeholder empty header cells aligned to their columns */}
+                {retailers.map((ret) => (
+                  <React.Fragment key={ret}>
+                    <td className="border p-2"></td>
+                    {hasDiscountFor[ret] && <td className="border p-2"></td>}
+                    <td className="border p-2 bg-gray-50">{totalForRetailer(ret)}</td>
+                  </React.Fragment>
+                ))}
+              </tr>
             </tbody>
           </table>
 
-         
+          
         </div>
       )}
     </main>
