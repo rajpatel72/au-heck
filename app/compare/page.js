@@ -7,7 +7,7 @@ export default function ComparePage() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [userInputs, setUserInputs] = useState({});
-  const [customRows, setCustomRows] = useState([]); // ✅ stores user-added rows
+  const [customRows, setCustomRows] = useState([]);
 
   useEffect(() => {
     fetch("/api/tariffs")
@@ -22,6 +22,7 @@ export default function ComparePage() {
     const result = await res.json();
     setData(result);
     setUserInputs({});
+    setCustomRows([]); // reset custom rows when new tariff is loaded
     setLoading(false);
   };
 
@@ -42,57 +43,61 @@ export default function ComparePage() {
 
   const noDiscountFields = ["Capacity Charges", "Demand 1", "Demand 2", "Solar"];
 
-  const handleInputChange = (field, key, value) => {
-    setUserInputs((prev) => ({
-      ...prev,
-      [field]: { ...prev[field], [key]: value },
-    }));
+  const handleInputChange = (rowType, field, key, value) => {
+    if (rowType === "custom") {
+      setCustomRows((prev) =>
+        prev.map((r) =>
+          r.field === field ? { ...r, [key]: value } : r
+        )
+      );
+    } else {
+      setUserInputs((prev) => ({
+        ...prev,
+        [field]: { ...prev[field], [key]: value },
+      }));
+    }
   };
 
-  const calcManualTotal = (field) => {
-    const usage = parseFloat(userInputs[field]?.usage || 0);
-    const rate = parseFloat(userInputs[field]?.rate || 0);
-    const discount = parseFloat(userInputs[field]?.discount || 0);
-    if (!usage || !rate) return "-";
-    const discountFactor = noDiscountFields.includes(field)
-      ? 1
-      : 1 - discount / 100;
-    const total = usage * rate * discountFactor;
-    return total.toFixed(2);
+  const addCustomRow = () => {
+    const newRow = {
+      field: `Custom Row ${customRows.length + 1}`,
+      usage: "",
+      rate: "",
+      discount: "",
+      originRate: "",
+      originDiscount: "",
+      nectrRate: "",
+      nectrDiscount: "",
+      momentumRate: "",
+      momentumDiscount: "",
+      nbeRate: "",
+      nbeDiscount: "",
+    };
+    setCustomRows((prev) => [...prev, newRow]);
   };
 
-  const calcRetailerTotal = (field, rateInDollars, discount) => {
-    const usage = parseFloat(userInputs[field]?.usage || 0);
-    const rate = parseFloat(rateInDollars || 0) / 100; // convert $ → ¢
+  const calcTotal = (usage, rate, discount, field) => {
+    const u = parseFloat(usage || 0);
+    const r = parseFloat(rate || 0);
     const d = parseFloat(discount || 0);
-    if (!usage || !rate) return "-";
-    const discountFactor = noDiscountFields.includes(field)
-      ? 1
-      : 1 - d / 100;
-    const total = usage * rate * discountFactor;
-    return total.toFixed(2);
+    if (!u || !r) return "-";
+    const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
+    return (u * r * factor).toFixed(2);
+  };
+
+  const calcRetailerTotal = (field, rateInDollars, discount, usage) => {
+    const usageVal = parseFloat(usage || 0);
+    const rate = parseFloat(rateInDollars || 0) * 100; // convert $→¢
+    const d = parseFloat(discount || 0);
+    if (!usageVal || !rate) return "-";
+    const factor = noDiscountFields.includes(field) ? 1 : 1 - d / 100;
+    return (usageVal * rate * factor).toFixed(2);
   };
 
   const formatRate = (rate) => {
     const r = parseFloat(rate);
     if (isNaN(r)) return "-";
-    return (r / 100).toFixed(4);
-  };
-
-  // ✅ Add a new blank custom row
-  const handleAddRow = () => {
-    const newField = `Custom ${customRows.length + 1}`;
-    setCustomRows((prev) => [...prev, newField]);
-  };
-
-  // ✅ Remove a specific custom row
-  const handleRemoveRow = (field) => {
-    setCustomRows((prev) => prev.filter((f) => f !== field));
-    setUserInputs((prev) => {
-      const updated = { ...prev };
-      delete updated[field];
-      return updated;
-    });
+    return (r * 100).toFixed(4); // show $→¢ with 4 decimals
   };
 
   return (
@@ -149,19 +154,18 @@ export default function ComparePage() {
                 <th className="p-2 border">NBE (¢)</th>
                 <th className="p-2 border bg-gray-50">NBE Discount (%)</th>
                 <th className="p-2 border bg-gray-50">NBE Total</th>
-                <th className="p-2 border">Actions</th>
               </tr>
             </thead>
 
             <tbody>
-              {[...fields, ...customRows].map((field) => {
+              {/* Default Rows */}
+              {fields.map((field) => {
                 const originRate = parseFloat(data.Origin?.[field]) || 0;
                 const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
                 const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
                 const nbeRate = parseFloat(data.NBE?.[field]) || 0;
 
                 const allEmpty =
-                  !customRows.includes(field) &&
                   originRate === 0 &&
                   nectrRate === 0 &&
                   momentumRate === 0 &&
@@ -173,22 +177,23 @@ export default function ComparePage() {
                 const momentumDisc = parseFloat(data.Momentum?.["Discount"]) || 0;
                 const nbeDisc = parseFloat(data.NBE?.["Discount"]) || 0;
 
+                const usage = userInputs[field]?.usage || "";
+                const manualRate = userInputs[field]?.rate || "";
+                const manualDisc = userInputs[field]?.discount || "";
+
                 return (
                   <tr key={field} className="text-center hover:bg-gray-50">
-                    <td className="border p-2 font-medium text-left">
-                      {field}
-                    </td>
+                    <td className="border p-2 text-left">{field}</td>
 
+                    {/* Manual Inputs */}
                     <td className="border p-2">
                       <input
                         type="number"
-                        min="0"
-                        step="any"
-                        value={userInputs[field]?.usage || ""}
+                        value={usage}
                         onChange={(e) =>
-                          handleInputChange(field, "usage", e.target.value)
+                          handleInputChange("default", field, "usage", e.target.value)
                         }
-                        className="w-24 border rounded px-2 py-1 text-sm"
+                        className="w-20 border rounded px-2 py-1 text-sm"
                         placeholder="kWh"
                       />
                     </td>
@@ -196,97 +201,142 @@ export default function ComparePage() {
                     <td className="border p-2">
                       <input
                         type="number"
-                        min="0"
-                        step="any"
-                        value={userInputs[field]?.rate || ""}
+                        value={manualRate}
                         onChange={(e) =>
-                          handleInputChange(field, "rate", e.target.value)
+                          handleInputChange("default", field, "rate", e.target.value)
                         }
                         className="w-24 border rounded px-2 py-1 text-sm"
-                        placeholder="¢/kWh"
+                        placeholder="¢"
                       />
                     </td>
 
                     <td className="border p-2">
                       <input
                         type="number"
-                        min="0"
-                        step="any"
-                        value={userInputs[field]?.discount || ""}
+                        value={manualDisc}
                         onChange={(e) =>
-                          handleInputChange(field, "discount", e.target.value)
+                          handleInputChange("default", field, "discount", e.target.value)
                         }
                         className="w-20 border rounded px-2 py-1 text-sm"
                         placeholder="%"
-                        disabled={
-                          noDiscountFields.includes(field) &&
-                          !customRows.includes(field)
-                        }
+                        disabled={noDiscountFields.includes(field)}
                       />
                     </td>
 
                     <td className="border p-2 font-semibold text-blue-700">
-                      {calcManualTotal(field)}
+                      {calcTotal(usage, manualRate, manualDisc, field)}
                     </td>
 
-                    {/* Retailer Columns (hidden for custom rows) */}
-                    {customRows.includes(field) ? (
-                      <>
-                        <td className="border p-2" colSpan="12">
-                          (Custom Row - no retailer data)
-                        </td>
-                      </>
-                    ) : (
-                      <>
-                        <td className="border p-2">{formatRate(originRate)}</td>
-                        <td className="border p-2 bg-gray-50">{originDisc}%</td>
-                        <td className="border p-2 bg-gray-50">
-                          {calcRetailerTotal(field, originRate, originDisc)}
-                        </td>
+                    {/* Retailers */}
+                    <td className="border p-2">{formatRate(originRate)}</td>
+                    <td className="border p-2 bg-gray-50">{originDisc}%</td>
+                    <td className="border p-2 bg-gray-50">
+                      {calcRetailerTotal(field, originRate, originDisc, usage)}
+                    </td>
 
-                        <td className="border p-2">{formatRate(nectrRate)}</td>
-                        <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
-                        <td className="border p-2 bg-gray-50">
-                          {calcRetailerTotal(field, nectrRate, nectrDisc)}
-                        </td>
+                    <td className="border p-2">{formatRate(nectrRate)}</td>
+                    <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
+                    <td className="border p-2 bg-gray-50">
+                      {calcRetailerTotal(field, nectrRate, nectrDisc, usage)}
+                    </td>
 
-                        <td className="border p-2">{formatRate(momentumRate)}</td>
-                        <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
-                        <td className="border p-2 bg-gray-50">
-                          {calcRetailerTotal(field, momentumRate, momentumDisc)}
-                        </td>
+                    <td className="border p-2">{formatRate(momentumRate)}</td>
+                    <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
+                    <td className="border p-2 bg-gray-50">
+                      {calcRetailerTotal(field, momentumRate, momentumDisc, usage)}
+                    </td>
 
-                        <td className="border p-2">{formatRate(nbeRate)}</td>
-                        <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
-                        <td className="border p-2 bg-gray-50">
-                          {calcRetailerTotal(field, nbeRate, nbeDisc)}
-                        </td>
-                      </>
-                    )}
-
-                    <td className="border p-2">
-                      {customRows.includes(field) && (
-                        <button
-                          onClick={() => handleRemoveRow(field)}
-                          className="text-red-600 hover:underline"
-                        >
-                          ✕
-                        </button>
-                      )}
+                    <td className="border p-2">{formatRate(nbeRate)}</td>
+                    <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
+                    <td className="border p-2 bg-gray-50">
+                      {calcRetailerTotal(field, nbeRate, nbeDisc, usage)}
                     </td>
                   </tr>
                 );
               })}
+
+              {/* Custom Rows */}
+              {customRows.map((row) => (
+                <tr key={row.field} className="text-center bg-yellow-50">
+                  <td className="border p-2 text-left font-medium">{row.field}</td>
+                  <td className="border p-2">
+                    <input
+                      type="number"
+                      value={row.usage}
+                      onChange={(e) =>
+                        handleInputChange("custom", row.field, "usage", e.target.value)
+                      }
+                      className="w-20 border rounded px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="border p-2">
+                    <input
+                      type="number"
+                      value={row.rate}
+                      onChange={(e) =>
+                        handleInputChange("custom", row.field, "rate", e.target.value)
+                      }
+                      className="w-24 border rounded px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="border p-2">
+                    <input
+                      type="number"
+                      value={row.discount}
+                      onChange={(e) =>
+                        handleInputChange("custom", row.field, "discount", e.target.value)
+                      }
+                      className="w-20 border rounded px-2 py-1 text-sm"
+                    />
+                  </td>
+                  <td className="border p-2 font-semibold text-blue-700">
+                    {calcTotal(row.usage, row.rate, row.discount, row.field)}
+                  </td>
+
+                  {/* Editable Retailer Columns */}
+                  {["origin", "nectr", "momentum", "nbe"].map((ret) => (
+                    <React.Fragment key={ret}>
+                      <td className="border p-2">
+                        <input
+                          type="number"
+                          value={row[`${ret}Rate`]}
+                          onChange={(e) =>
+                            handleInputChange("custom", row.field, `${ret}Rate`, e.target.value)
+                          }
+                          className="w-24 border rounded px-2 py-1 text-sm"
+                        />
+                      </td>
+                      <td className="border p-2 bg-gray-50">
+                        <input
+                          type="number"
+                          value={row[`${ret}Discount`]}
+                          onChange={(e) =>
+                            handleInputChange("custom", row.field, `${ret}Discount`, e.target.value)
+                          }
+                          className="w-20 border rounded px-2 py-1 text-sm"
+                        />
+                      </td>
+                      <td className="border p-2 bg-gray-50">
+                        {calcTotal(
+                          row.usage,
+                          row[`${ret}Rate`],
+                          row[`${ret}Discount`],
+                          row.field
+                        )}
+                      </td>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
 
-          {/* ✅ Add Row Button */}
-          <div className="text-center mt-4">
+          <div className="mt-4 flex justify-end">
             <button
-              onClick={handleAddRow}
+              onClick={addCustomRow}
               className="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700"
             >
-              + Add Custom Row
+              ➕ Add Custom Row
             </button>
           </div>
         </div>
