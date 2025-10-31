@@ -4,7 +4,7 @@ import Papa from "papaparse";
 
 export async function GET() {
   const folderPath = path.join(process.cwd(), "public", "data");
-  const files = ["origin.csv", "nectr.csv", "momentum.csv", "nbe.csv"];
+  const files = ["origin.csv", "nectr.csv", "momentum.csv", "nbe.csv", "1st.csv"];
   const tariffs = new Set();
 
   for (const file of files) {
