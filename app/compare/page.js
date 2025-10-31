@@ -175,11 +175,7 @@ export default function ComparePage() {
                         type="number"
                         min="0"
                         step="any"
-                        value={
-  userInputs[field]?.rate
-    ? parseFloat(userInputs[field]?.rate).toFixed(4)
-    : ""
-}
+                        value={userInputs[field]?.rate || ""}
                         onChange={(e) =>
                           handleInputChange(field, "usage", e.target.value)
                         }
