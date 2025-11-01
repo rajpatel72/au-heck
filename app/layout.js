@@ -1,8 +1,8 @@
-import "./globals.css";
+import "./globals.css"; // ✅ Import Tailwind here only
 
 export const metadata = {
-  title: "My App",
-  description: "Next.js app with Tailwind",
+  title: "Electricity Rate Comparison",
+  description: "Compare electricity tariffs with modern UI",
 };
 
 export default function RootLayout({ children }) {
