@@ -33,18 +33,8 @@ export default function ComparePage() {
   };
 
   const fields = [
-    "Daily supply charge",
-    "Peak",
-    "Peak 2",
-    "Shoulder",
-    "Off Peak",
-    "CL1",
-    "CL2",
-    "CL3",
-    "Capacity Charges",
-    "Demand 1",
-    "Demand 2",
-    "Solar",
+    "Daily supply charge", "Peak", "Peak 2", "Shoulder", "Off Peak",
+    "CL1", "CL2", "CL3", "Capacity Charges", "Demand 1", "Demand 2", "Solar",
   ];
 
   const noDiscountFields = ["Capacity Charges", "Demand 1", "Demand 2", "Solar"];
@@ -65,17 +55,11 @@ export default function ComparePage() {
   const addCustomRow = () => {
     const newRow = {
       field: `Custom Row ${customRows.length + 1}`,
-      usage: "",
-      rate: "",
-      discount: "",
-      originRate: "",
-      originDiscount: "",
-      nectrRate: "",
-      nectrDiscount: "",
-      momentumRate: "",
-      momentumDiscount: "",
-      nbeRate: "",
-      nbeDiscount: "",
+      usage: "", rate: "", discount: "",
+      originRate: "", originDiscount: "",
+      nectrRate: "", nectrDiscount: "",
+      momentumRate: "", momentumDiscount: "",
+      nbeRate: "", nbeDiscount: "",
     };
     setCustomRows((prev) => [...prev, newRow]);
   };
@@ -106,10 +90,12 @@ export default function ComparePage() {
 
   const totalForRetailer = (retailerKey) => {
     let total = 0;
+
     fields.forEach((f) => {
       const usage = userInputs[f]?.usage;
       const manualRate = userInputs[f]?.rate;
       const manualDisc = userInputs[f]?.discount;
+
       if (retailerKey === "manual") {
         const valStr = calcTotal(usage, manualRate, manualDisc, f);
         const val = parseFloat(valStr);
@@ -143,152 +129,205 @@ export default function ComparePage() {
   };
 
   return (
-    <main className="min-h-screen bg-gradient-to-br from-slate-900 via-blue-900 to-indigo-800 text-white p-10">
-      <div className="max-w-7xl mx-auto">
-        <h1 className="text-4xl font-extrabold text-center mb-10 bg-gradient-to-r from-blue-300 to-cyan-400 bg-clip-text text-transparent drop-shadow-lg">
-          ⚡ Electricity Rate Comparison
-        </h1>
+    <main className="min-h-screen p-8 bg-gradient-to-br from-gray-900 via-gray-800 to-gray-950 text-gray-100">
+      <h1 className="text-4xl font-extrabold text-center mb-10 bg-clip-text text-transparent bg-gradient-to-r from-blue-400 to-teal-300 drop-shadow-lg">
+        ⚡ Electricity Rate Comparison
+      </h1>
 
-        {/* Tariff Selector */}
-        <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-10">
-          <select
-            className="bg-white/10 backdrop-blur-md border border-white/20 text-white px-4 py-3 rounded-xl w-72 focus:outline-none focus:ring-2 focus:ring-cyan-400"
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-          >
-            <option value="">Select Network Tariff</option>
-            {tariffs.map((t) => (
-              <option key={t} value={t} className="text-black">
-                {t}
-              </option>
-            ))}
-          </select>
+      <div className="flex flex-col md:flex-row justify-center items-center gap-4 mb-8">
+        <select
+          className="px-4 py-3 rounded-lg bg-gray-800/70 border border-gray-700 backdrop-blur-md text-gray-200 focus:outline-none focus:ring-2 focus:ring-blue-400"
+          value={selected}
+          onChange={(e) => setSelected(e.target.value)}
+        >
+          <option value="">Select Network Tariff</option>
+          {tariffs.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
 
-          <button
-            onClick={handleCompare}
-            disabled={loading}
-            className={`px-8 py-3 rounded-xl font-semibold transition-all ${
-              loading
-                ? "bg-cyan-400/30 text-cyan-200 animate-pulse"
-                : "bg-gradient-to-r from-cyan-400 to-blue-600 hover:scale-105 hover:shadow-cyan-400/40 hover:shadow-lg"
-            }`}
-          >
-            {loading ? "Loading..." : "Compare Rates"}
-          </button>
-        </div>
+        <button
+          onClick={handleCompare}
+          className="px-6 py-3 rounded-lg font-semibold bg-gradient-to-r from-blue-600 to-cyan-500 hover:from-blue-500 hover:to-cyan-400 transition-all duration-200 shadow-md hover:shadow-lg"
+        >
+          {loading ? "Loading..." : "Compare Rates"}
+        </button>
 
         {data && (
-          <div className="relative overflow-x-auto rounded-2xl shadow-2xl border border-white/20 backdrop-blur-md bg-white/5">
-            <table className="min-w-full text-sm text-left text-gray-200">
-              <thead className="sticky top-0 bg-white/10 text-cyan-300 backdrop-blur-md">
-                <tr>
-                  {[
-                    "Field",
-                    "Usage",
-                    "Manual Rate (¢)",
-                    "Manual Discount",
-                    "Manual Total",
-                    "Origin Total",
-                    "Nectr Total",
-                    "Momentum Total",
-                    "NBE Total",
-                  ].map((h) => (
-                    <th key={h} className="p-3 border-b border-white/10 text-center">
-                      {h}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {fields.map((field) => {
-                  const usage = userInputs[field]?.usage || "";
-                  const manualRate = userInputs[field]?.rate || "";
-                  const manualDisc = userInputs[field]?.discount || "";
-
-                  const originRate = parseFloat(data.Origin?.[field]) || 0;
-                  const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
-                  const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
-                  const nbeRate = parseFloat(data.NBE?.[field]) || 0;
-
-                  const originDisc = parseFloat(data.Origin?.["Discount"]) || 0;
-                  const nectrDisc = parseFloat(data.Nectr?.["Discount"]) || 0;
-                  const momentumDisc = parseFloat(data.Momentum?.["Discount"]) || 0;
-                  const nbeDisc = parseFloat(data.NBE?.["Discount"]) || 0;
-
-                  return (
-                    <tr
-                      key={field}
-                      className="text-center hover:bg-white/10 transition-colors"
-                    >
-                      <td className="p-3 border-b border-white/10 text-left font-medium text-cyan-300">
-                        {field}
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={usage}
-                          onChange={(e) =>
-                            handleInputChange("default", field, "usage", e.target.value)
-                          }
-                          className="w-20 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm focus:outline-none focus:ring-1 focus:ring-cyan-400"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={manualRate}
-                          onChange={(e) =>
-                            handleInputChange("default", field, "rate", e.target.value)
-                          }
-                          className="w-20 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm"
-                        />
-                      </td>
-                      <td>
-                        <input
-                          type="number"
-                          value={manualDisc}
-                          onChange={(e) =>
-                            handleInputChange("default", field, "discount", e.target.value)
-                          }
-                          disabled={noDiscountFields.includes(field)}
-                          className="w-20 bg-white/10 border border-white/20 rounded px-2 py-1 text-white text-sm disabled:opacity-40"
-                        />
-                      </td>
-                      <td className="text-cyan-300 font-semibold">
-                        {calcTotal(usage, manualRate, manualDisc, field)}
-                      </td>
-                      <td>{calcRetailerTotal(field, originRate, originDisc, usage)}</td>
-                      <td>{calcRetailerTotal(field, nectrRate, nectrDisc, usage)}</td>
-                      <td>{calcRetailerTotal(field, momentumRate, momentumDisc, usage)}</td>
-                      <td>{calcRetailerTotal(field, nbeRate, nbeDisc, usage)}</td>
-                    </tr>
-                  );
-                })}
-
-                <tr className="bg-gradient-to-r from-cyan-600/30 to-blue-700/30 text-center font-bold">
-                  <td className="p-3 text-left text-cyan-300">TOTAL</td>
-                  <td colSpan={3}></td>
-                  <td className="text-cyan-200">{totalForRetailer("manual")}</td>
-                  <td>{totalForRetailer("Origin")}</td>
-                  <td>{totalForRetailer("Nectr")}</td>
-                  <td>{totalForRetailer("Momentum")}</td>
-                  <td>{totalForRetailer("NBE")}</td>
-                </tr>
-              </tbody>
-            </table>
-
-            <div className="flex justify-center my-6">
-              <button
-                onClick={addCustomRow}
-                className="px-6 py-2 rounded-lg bg-gradient-to-r from-blue-400 to-cyan-500 text-white font-semibold hover:shadow-lg hover:shadow-cyan-400/40 transition-transform hover:scale-105"
-              >
-                + Add Custom Row
-              </button>
-            </div>
-          </div>
+          <button
+            onClick={addCustomRow}
+            className="px-5 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-yellow-400 text-gray-900 font-semibold hover:brightness-110 transition-all duration-200 shadow-md"
+          >
+            + Add Custom Row
+          </button>
         )}
       </div>
+
+      {data && (
+        <div className="overflow-x-auto shadow-2xl rounded-2xl border border-gray-700 backdrop-blur-lg bg-gray-900/70">
+          <table className="min-w-full border-collapse text-sm">
+            <thead>
+              <tr className="bg-gradient-to-r from-blue-700 to-teal-600 text-white text-center">
+                <th className="p-3 border border-gray-700 text-left">Field</th>
+                <th className="p-3 border border-gray-700">Usage</th>
+                <th className="p-3 border border-gray-700">Current Rate (¢)</th>
+                <th className="p-3 border border-gray-700">Discount (%)</th>
+                <th className="p-3 border border-gray-700 text-blue-200">Manual Total</th>
+                <th className="p-3 border border-gray-700">Origin (¢)</th>
+                <th className="p-3 border border-gray-700">Origin Discount</th>
+                <th className="p-3 border border-gray-700">Origin Total</th>
+                <th className="p-3 border border-gray-700">Nectr (¢)</th>
+                <th className="p-3 border border-gray-700">Nectr Discount</th>
+                <th className="p-3 border border-gray-700">Nectr Total</th>
+                <th className="p-3 border border-gray-700">Momentum (¢)</th>
+                <th className="p-3 border border-gray-700">Momentum Discount</th>
+                <th className="p-3 border border-gray-700">Momentum Total</th>
+                <th className="p-3 border border-gray-700">NBE (¢)</th>
+                <th className="p-3 border border-gray-700">NBE Discount</th>
+                <th className="p-3 border border-gray-700">NBE Total</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {fields.map((field) => {
+                const originRate = parseFloat(data.Origin?.[field]) || 0;
+                const nectrRate = parseFloat(data.Nectr?.[field]) || 0;
+                const momentumRate = parseFloat(data.Momentum?.[field]) || 0;
+                const nbeRate = parseFloat(data.NBE?.[field]) || 0;
+                const allEmpty = originRate === 0 && nectrRate === 0 && momentumRate === 0 && nbeRate === 0;
+                if (allEmpty) return null;
+
+                const originDisc = parseFloat(data.Origin?.["Discount"]) || 0;
+                const nectrDisc = parseFloat(data.Nectr?.["Discount"]) || 0;
+                const momentumDisc = parseFloat(data.Momentum?.["Discount"]) || 0;
+                const nbeDisc = parseFloat(data.NBE?.["Discount"]) || 0;
+
+                const usage = userInputs[field]?.usage || "";
+                const manualRate = userInputs[field]?.rate || "";
+                const manualDisc = userInputs[field]?.discount || "";
+
+                return (
+                  <tr key={field} className="hover:bg-gray-800/50 transition">
+                    <td className="border border-gray-700 p-2 text-left">{field}</td>
+                    <td className="border border-gray-700 p-2">
+                      <input
+                        type="number"
+                        value={usage}
+                        onChange={(e) => handleInputChange("default", field, "usage", e.target.value)}
+                        className="w-20 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-400"
+                      />
+                    </td>
+                    <td className="border border-gray-700 p-2">
+                      <input
+                        type="number"
+                        value={manualRate}
+                        onChange={(e) => handleInputChange("default", field, "rate", e.target.value)}
+                        className="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-blue-400"
+                      />
+                    </td>
+                    <td className="border border-gray-700 p-2">
+                      <input
+                        type="number"
+                        value={manualDisc}
+                        onChange={(e) => handleInputChange("default", field, "discount", e.target.value)}
+                        className="w-20 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-blue-400"
+                        disabled={noDiscountFields.includes(field)}
+                      />
+                    </td>
+                    <td className="border border-gray-700 p-2 text-blue-400 font-semibold">
+                      {calcTotal(usage, manualRate, manualDisc, field)}
+                    </td>
+                    <td className="border border-gray-700 p-2">{formatRate(originRate)}</td>
+                    <td className="border border-gray-700 p-2">{originDisc}%</td>
+                    <td className="border border-gray-700 p-2">{calcRetailerTotal(field, originRate, originDisc, usage)}</td>
+                    <td className="border border-gray-700 p-2">{formatRate(nectrRate)}</td>
+                    <td className="border border-gray-700 p-2">{nectrDisc}%</td>
+                    <td className="border border-gray-700 p-2">{calcRetailerTotal(field, nectrRate, nectrDisc, usage)}</td>
+                    <td className="border border-gray-700 p-2">{formatRate(momentumRate)}</td>
+                    <td className="border border-gray-700 p-2">{momentumDisc}%</td>
+                    <td className="border border-gray-700 p-2">{calcRetailerTotal(field, momentumRate, momentumDisc, usage)}</td>
+                    <td className="border border-gray-700 p-2">{formatRate(nbeRate)}</td>
+                    <td className="border border-gray-700 p-2">{nbeDisc}%</td>
+                    <td className="border border-gray-700 p-2">{calcRetailerTotal(field, nbeRate, nbeDisc, usage)}</td>
+                  </tr>
+                );
+              })}
+
+              {customRows.map((row) => (
+                <tr key={row.field} className="bg-amber-100/20 hover:bg-amber-200/10 transition">
+                  <td className="border border-gray-700 p-2 text-left font-medium text-amber-300">
+                    {row.field}
+                  </td>
+                  {["usage", "rate", "discount"].map((key) => (
+                    <td key={key} className="border border-gray-700 p-2">
+                      <input
+                        type="number"
+                        value={row[key]}
+                        onChange={(e) =>
+                          handleInputChange("custom", row.field, key, e.target.value)
+                        }
+                        className="w-20 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-amber-400"
+                      />
+                    </td>
+                  ))}
+                  <td className="border border-gray-700 p-2 text-blue-400 font-semibold">
+                    {calcTotal(row.usage, row.rate, row.discount, row.field)}
+                  </td>
+
+                  {["origin", "nectr", "momentum", "nbe"].map((ret) => (
+                    <React.Fragment key={ret}>
+                      <td className="border border-gray-700 p-2">
+                        <input
+                          type="number"
+                          value={row[`${ret}Rate`]}
+                          onChange={(e) =>
+                            handleInputChange("custom", row.field, `${ret}Rate`, e.target.value)
+                          }
+                          className="w-24 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-amber-400"
+                        />
+                      </td>
+                      <td className="border border-gray-700 p-2">
+                        <input
+                          type="number"
+                          value={row[`${ret}Discount`]}
+                          onChange={(e) =>
+                            handleInputChange("custom", row.field, `${ret}Discount`, e.target.value)
+                          }
+                          className="w-20 px-2 py-1 rounded bg-gray-800 border border-gray-600 text-gray-100 focus:ring-2 focus:ring-amber-400"
+                        />
+                      </td>
+                      <td className="border border-gray-700 p-2">
+                        {calcTotal(
+                          row.usage,
+                          row[`${ret}Rate`],
+                          row[`${ret}Discount`],
+                          row.field
+                        )}
+                      </td>
+                    </React.Fragment>
+                  ))}
+                </tr>
+              ))}
+
+              <tr className="font-bold bg-gradient-to-r from-blue-800 to-cyan-700 text-white">
+                <td className="border border-gray-700 p-3 text-left">TOTAL</td>
+                <td className="border border-gray-700"></td>
+                <td className="border border-gray-700"></td>
+                <td className="border border-gray-700"></td>
+                <td className="border border-gray-700 text-blue-200">{totalForRetailer("manual")}</td>
+                <td colSpan={2}></td>
+                <td className="border border-gray-700">{totalForRetailer("Origin")}</td>
+                <td colSpan={2}></td>
+                <td className="border border-gray-700">{totalForRetailer("Nectr")}</td>
+                <td colSpan={2}></td>
+                <td className="border border-gray-700">{totalForRetailer("Momentum")}</td>
+                <td colSpan={2}></td>
+                <td className="border border-gray-700">{totalForRetailer("NBE")}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      )}
     </main>
   );
 }
