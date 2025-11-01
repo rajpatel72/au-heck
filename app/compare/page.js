@@ -8,6 +8,7 @@ export default function ComparePage() {
   const [loading, setLoading] = useState(false);
   const [userInputs, setUserInputs] = useState({});
   const [customRows, setCustomRows] = useState([]);
+  const [availableDiscounts, setAvailableDiscounts] = useState({});
 
   useEffect(() => {
     fetch("/api/tariffs")
@@ -23,6 +24,12 @@ export default function ComparePage() {
       const res = await fetch(`/api/compare?tariff=${encodeURIComponent(selected)}`);
       const result = await res.json();
       setData(result);
+      // ✅ detect which retailers have a discount column
+      const availableDiscounts = {};
+      ["Origin", "Nectr", "Momentum", "NBE"].forEach((r) => {
+      availableDiscounts[r] = result?.[r]?.hasOwnProperty("Discount");
+      });
+      setAvailableDiscounts(availableDiscounts);
       setUserInputs({});
       setCustomRows([]);
     } catch (err) {
@@ -189,29 +196,24 @@ const totalForRetailer = (retailerKey) => {
           <table className="min-w-full border border-gray-300 bg-white shadow text-sm">
             <thead className="bg-gray-100">
               <tr>
-                <th className="p-2 border">Field</th>
+                <th className="p-2 border">Description</th>
                 <th className="p-2 border bg-blue-50">Usage</th>
-                <th className="p-2 border bg-blue-50">Current Rate (¢)</th>
+                <th className="p-2 border bg-blue-50">Current Offer Rate (¢)</th>
                 <th className="p-2 border bg-blue-50">Discount (%)</th>
-                <th className="p-2 border bg-blue-50">Manual Total</th>
-
-                <th className="p-2 border">Origin (¢)</th>
-                <th className="p-2 border bg-gray-50">Origin Discount (%)</th>
-                <th className="p-2 border bg-gray-50">Origin Total</th>
-
-                <th className="p-2 border">Nectr (¢)</th>
-                <th className="p-2 border bg-gray-50">Nectr Discount (%)</th>
-                <th className="p-2 border bg-gray-50">Nectr Total</th>
-
-                <th className="p-2 border">Momentum (¢)</th>
-                <th className="p-2 border bg-gray-50">Momentum Discount (%)</th>
-                <th className="p-2 border bg-gray-50">Momentum Total</th>
-
-                <th className="p-2 border">NBE (¢)</th>
-                <th className="p-2 border bg-gray-50">NBE Discount (%)</th>
-                <th className="p-2 border bg-gray-50">NBE Total</th>
+                <th className="p-2 border bg-blue-50">Current Offer Total</th>
+            
+                {["Origin", "Nectr", "Momentum", "NBE"].map((ret) => (
+                  <React.Fragment key={ret}>
+                    <th className="p-2 border">{ret} (¢)</th>
+                    {availableDiscounts[ret] && (
+                      <th className="p-2 border bg-gray-50">Discount (%)</th>
+                    )}
+                    <th className="p-2 border bg-gray-50">{ret} Total</th>
+                  </React.Fragment>
+                ))}
               </tr>
             </thead>
+
 
             <tbody>
               {fields.map((field) => {
@@ -274,29 +276,22 @@ const totalForRetailer = (retailerKey) => {
                       {calcTotal(usage, manualRate, manualDisc, field)}
                     </td>
 
-                    <td className="border p-2">{formatRate(originRate)}</td>
-                    <td className="border p-2 bg-gray-50">{originDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, originRate, originDisc, usage)}
-                    </td>
-
-                    <td className="border p-2">{formatRate(nectrRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nectrDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nectrRate, nectrDisc, usage)}
-                    </td>
-
-                    <td className="border p-2">{formatRate(momentumRate)}</td>
-                    <td className="border p-2 bg-gray-50">{momentumDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, momentumRate, momentumDisc, usage)}
-                    </td>
-
-                    <td className="border p-2">{formatRate(nbeRate)}</td>
-                    <td className="border p-2 bg-gray-50">{nbeDisc}%</td>
-                    <td className="border p-2 bg-gray-50">
-                      {calcRetailerTotal(field, nbeRate, nbeDisc, usage)}
-                    </td>
+                    {["Origin", "Nectr", "Momentum", "NBE"].map((ret) => {
+                    const rate = parseFloat(data?.[ret]?.[field]) || 0;
+                    const disc = parseFloat(data?.[ret]?.["Discount"]) || 0;
+                    return (
+                      <React.Fragment key={ret}>
+                        <td className="border p-2">{formatRate(rate)}</td>
+                        {availableDiscounts[ret] && (
+                          <td className="border p-2 bg-gray-50">{disc}%</td>
+                        )}
+                        <td className="border p-2 bg-gray-50">
+                          {calcRetailerTotal(field, rate, disc, usage)}
+                        </td>
+                      </React.Fragment>
+                    );
+                  })}
+                   
                   </tr>
                 );
               })}
